@@ -17,5 +17,7 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       SESSION_MAX_AGE_HOURS: ${SESSION_MAX_AGE_HOURS:-8}
       TRUST_PROXY: ${TRUST_PROXY:-false}
+    env_file:
+      - .env
     extra_hosts:
       - "host.docker.internal:host-gateway"   # access host services from container
