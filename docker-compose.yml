@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  telemt-panel:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Fill these in or use .env file:
+      PANEL_USERNAME: ${PANEL_USERNAME:-admin}
+      PANEL_PASSWORD_HASH: ${PANEL_PASSWORD_HASH}
+      TELEMT_API_URL: ${TELEMT_API_URL:-http://host.docker.internal:9091}
+      TELEMT_API_TOKEN: ${TELEMT_API_TOKEN:-}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_MAX_AGE_HOURS: ${SESSION_MAX_AGE_HOURS:-8}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # access host services from container

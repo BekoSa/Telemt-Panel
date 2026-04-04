@@ -1,0 +1,21 @@
+{
+  "name": "telemt-control-panel",
+  "version": "1.0.0",
+  "description": "Web UI for Telemt Control API with session authentication",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "setup": "node setup-password.js init"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "memorystore": "^1.6.7"
+  }
+}
