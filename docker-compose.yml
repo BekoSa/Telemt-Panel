@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   telemt-panel:
-    build: .
+    image: ghcr.io/BekoSa/Telemt-Panel:${PANEL_IMAGE_TAG:-latest}
     restart: unless-stopped
     ports:
       - "3000:3000"
