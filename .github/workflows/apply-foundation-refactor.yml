@@ -1,0 +1,46 @@
+name: Apply foundation refactor
+
+on:
+  push:
+    branches:
+      - modernize/telemt-3.5.7
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: ${{ github.event.head_commit.message != 'refactor: make panel app testable' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+
+      - name: Apply refactor
+        run: node scripts/split-app.js
+
+      - name: Verify syntax
+        run: |
+          node --check app.js
+          node --check server.js
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify tests
+        run: npm test
+
+      - name: Commit refactor
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js server.js
+          git commit -m 'refactor: make panel app testable'
+          git push origin HEAD:modernize/telemt-3.5.7
