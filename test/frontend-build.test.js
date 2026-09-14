@@ -39,3 +39,16 @@ test('globe renderer uses the imported d3 namespace without self-shadowing it', 
   assert.match(source, /topojson\.feature\(world,world\.objects\.countries\)/);
   assert.match(source, /d3\.geoOrthographic\(\)/);
 });
+
+test('frontend self-hosts the original IBM Plex Mono and DM Sans typography', () => {
+  const source = fs.readFileSync(clientPath, 'utf8');
+  assert.match(pkg.devDependencies?.['@fontsource/ibm-plex-mono'] || '', /5\.3\.0/);
+  assert.match(pkg.devDependencies?.['@fontsource/dm-sans'] || '', /5\.3\.0/);
+  assert.match(source, /@fontsource\/ibm-plex-mono\/400\.css/);
+  assert.match(source, /@fontsource\/ibm-plex-mono\/600\.css/);
+  assert.match(source, /@fontsource\/dm-sans\/400\.css/);
+  assert.match(source, /@fontsource\/dm-sans\/700\.css/);
+  assert.match(html, /--mono:'IBM Plex Mono',monospace/);
+  assert.match(html, /--sans:'DM Sans',sans-serif/);
+  assert.match(html, /<link rel=["']stylesheet["'] href=["']\/assets\/app\.css["']/i);
+});
