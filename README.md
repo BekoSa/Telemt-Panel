@@ -2,6 +2,8 @@
 
 Web UI для управления [Telemt MTProto proxy](https://github.com/telemt/telemt) с авторизацией, аудитом и аналитикой.
 
+Текущая линия модернизации ориентирована на Telemt 3.5.7. Foundation уже переведён на Node.js 24 LTS и воспроизводимые npm-сборки; новые возможности Control API добавляются поэтапно.
+
 ## Возможности
 
 - 🔐 **Авторизация** — bcrypt, httpOnly cookie, CSRF-токен, rate limiting, idle timeout, IP-binding
@@ -12,6 +14,10 @@ Web UI для управления [Telemt MTProto proxy](https://github.com/tel
 - 🔍 **Analysis** — health score, детектирование аномалий, анализ лимитов пользователей
 - 🛡️ **Panel Security** — активные сессии (revoke), аудит-лог, конфиг безопасности
 
+## Требования
+
+Для запуска без Docker требуется **Node.js 24 LTS**. Зависимости фиксируются в `package-lock.json`; для воспроизводимой установки используйте `npm ci`.
+
 ## Быстрый старт
 
 ### 1. Настройка
@@ -19,8 +25,10 @@ Web UI для управления [Telemt MTProto proxy](https://github.com/tel
 ```bash
 cp .env.example .env
 
+# Воспроизводимая установка зависимостей
+npm ci
+
 # Интерактивный wizard (рекомендуется)
-npm install
 node setup-password.js init
 
 # Или вручную
@@ -37,6 +45,20 @@ npm start
 # С Docker
 docker compose up -d --build
 ```
+
+### 3. Проверка панели
+
+```bash
+curl http://127.0.0.1:3000/healthz
+```
+
+Ожидаемый ответ:
+
+```json
+{"ok":true,"service":"telemt-panel"}
+```
+
+`/healthz` проверяет только работоспособность процесса панели и **не зависит от доступности Telemt**. Состояние и readiness самого Telemt отображаются/проверяются отдельно через его Control API.
 
 ## Переменные окружения
 
@@ -60,7 +82,7 @@ docker compose up -d --build
 
 ## Конфигурация Telemt
 
-Для полной функциональности в `config.toml`:
+Для текущих страниц статистики/runtime в `config.toml` Telemt должны быть включены соответствующие API-возможности:
 
 ```toml
 [server.api]
@@ -70,6 +92,8 @@ minimal_runtime_enabled = true
 runtime_edge_enabled = true
 whitelist = ["172.16.0.0/12"]   # Docker bridge subnet
 ```
+
+Если используется `auth_header`, его точное значение укажите в `TELEMT_API_TOKEN`.
 
 ## За nginx
 
@@ -100,11 +124,15 @@ TRUST_PROXY=true
 
 ## Структура проекта
 
-```
+```text
 telemt-panel/
-├── server.js           # Express сервер — auth, proxy, API
+├── app.js              # Express app — auth, sessions, audit, Telemt proxy, static UI
+├── server.js           # Process entrypoint и listen()
 ├── setup-password.js   # CLI для генерации хэша и секрета
+├── test/
+│   └── app.test.js     # Node.js built-in tests
 ├── package.json
+├── package-lock.json
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example
@@ -117,7 +145,8 @@ telemt-panel/
 - Telemt API токен хранится только на сервере, браузер его никогда не видит
 - Все запросы к Telemt идут через серверный прокси `/api/v1/*`
 - CSRF-токен обязателен для всех мутирующих запросов
-- Геолокация IP через `ip-api.com` выполняется на сервере с 10-минутным кэшем
+- Панель и Docker healthcheck используют отдельный публичный `/healthz`, который не раскрывает конфигурацию или состояние сессий
+- Геолокация IP через `ip-api.com` пока выполняется на сервере с 10-минутным кэшем; замена этого HTTP-зависимого механизма запланирована отдельным этапом модернизации
 
 ## Лицензия
 
