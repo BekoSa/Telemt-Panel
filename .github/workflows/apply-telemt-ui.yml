@@ -4,6 +4,9 @@ on:
   push:
     branches: [fix/globe-fonts-wss-traffic]
 
+permissions:
+  contents: write
+
 jobs:
   apply:
     runs-on: ubuntu-latest
