@@ -35,3 +35,28 @@ test('users page exposes current active source IP snapshot', () => {
   assert.match(source, /Active source IPs/);
   assert.match(source, /function ActiveUserIps\(/);
 });
+
+test('runtime edge exposes WEB runtime status and bounded sessions', () => {
+  assert.match(source, /useApi\('\/runtime\/web\/status'\)/);
+  assert.match(source, /useApi\('\/runtime\/web\/sessions\?limit=100'\)/);
+  assert.match(source, />WEB Runtime</);
+  assert.match(source, /function WebRuntimePanel\(/);
+});
+
+test('WEB runtime controls use the current runtime_instance fence', () => {
+  assert.match(source, /\/runtime\/web\/lifecycle\/pause/);
+  assert.match(source, /\/runtime\/web\/lifecycle\/drain/);
+  assert.match(source, /\/runtime\/web\/lifecycle\/resume/);
+  assert.match(source, /runtime_instance/);
+  assert.match(source, /timeout_secs/);
+  assert.match(source, />Pause</);
+  assert.match(source, />Drain</);
+  assert.match(source, />Resume</);
+});
+
+test('WEB runtime can close an explicit active session reference', () => {
+  assert.match(source, /\/runtime\/web\/sessions\/close/);
+  assert.match(source, /kind:\s*['"]refs['"]/);
+  assert.match(source, /session_refs/);
+  assert.match(source, />Close session</);
+});
