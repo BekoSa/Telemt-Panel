@@ -215,7 +215,12 @@ async function api(path, method='GET', body=null, ifMatch=null) {
   const r = await fetch('/api/v1' + path, opts);
   if (r.status === 401) { window.__sessionExpired?.(); throw new Error('Session expired'); }
   const json = await r.json();
-  if (!json.ok) throw new Error(json.error?.message || json.error?.code || 'Unknown error');
+  if (!json.ok) {
+    const err = new Error(json.error?.message || json.error?.code || 'Unknown error');
+    err.code = json.error?.code || null;
+    err.status = r.status;
+    throw err;
+  }
   return json;
 }
 
@@ -337,10 +342,11 @@ function LoginPage({onLogin}) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 function DashboardPage() {
   const health = useApi('/health');
+  const ready  = useApi('/health/ready');
   const info   = useApi('/system/info');
   const sum    = useApi('/stats/summary');
   const gates  = useApi('/runtime/gates');
-  const reload = () => { health.reload(); info.reload(); sum.reload(); gates.reload(); };
+  const reload = () => { health.reload(); ready.reload(); info.reload(); sum.reload(); gates.reload(); };
   return (
     <div>
       <div className="page-hdr">
@@ -354,6 +360,14 @@ function DashboardPage() {
             {health.loading?'…':health.err?<span style={{color:'var(--err)'}}>ERROR</span>:<span style={{color:'var(--accent)'}}>● ONLINE</span>}
           </div>
           {health.data&&<div className="stat-sub">read_only: {String(health.data.read_only)}</div>}
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">READY</div>
+          <div className="stat-value" style={{fontSize:15,marginTop:4}}>
+            {ready.loading?'…':ready.err?<span style={{color:'var(--text3)'}}>N/A</span>:ready.data?.ready?<span style={{color:'var(--accent)'}}>● READY</span>:<span style={{color:'var(--warn)'}}>● NOT READY</span>}
+          </div>
+          {ready.data&&<div className="stat-sub">{ready.data.status||'unknown'}</div>}
+          {ready.err&&<div className="stat-sub">unsupported or unavailable</div>}
         </div>
         <div className="stat-card"><div className="stat-label">UPTIME</div><div className="stat-value accent">{sum.data?fmt_uptime(sum.data.uptime_seconds):'—'}</div></div>
         <div className="stat-card">
@@ -534,8 +548,8 @@ function UserDetailModal({user:initialUser,onClose,onEdit,cfg}) {
   const [user,setUser]   = useState(initialUser);
   const [loading,setL]   = useState(true);
   const [err,setErr]     = useState(null);
-  const [rotating,setRot]= useState(false);
-  const [rotMsg,setRotMsg]= useState(null);
+  const [busyAction,setBusyAction]=useState(null);
+  const [actionMsg,setActionMsg]=useState(null);
 
   // Fresh fetch from GET /v1/users/{username}
   useEffect(()=>{
@@ -550,18 +564,27 @@ function UserDetailModal({user:initialUser,onClose,onEdit,cfg}) {
     return()=>{cancelled=true;};
   },[initialUser.username]);
 
-  const rotateSecret=async()=>{
-    setRot(true); setRotMsg(null);
+  const runUserAction=async(path,successMessage,confirmMessage=null)=>{
+    if(confirmMessage && !window.confirm(confirmMessage)) return;
+    const action=path.split('/').pop();
+    setBusyAction(action); setActionMsg(null);
     try{
-      await api('/users/'+user.username+'/rotate-secret','POST',{});
-      setRotMsg({ok:true,msg:'Secret rotated successfully'});
+      await api(path,'POST',{});
+      const fresh=await api('/users/'+user.username);
+      if(fresh?.data) setUser(fresh.data);
+      setActionMsg({ok:true,msg:successMessage});
     }catch(e){
-      // Telemt currently returns 404 for this endpoint (known limitation)
-      setRotMsg({ok:false,msg:e.message.includes('not_found')||e.message.includes('404')
-        ? 'rotate-secret is not yet available in this Telemt release (known limitation)'
+      const unsupported=e.status===404||e.status===405||e.code==='not_found'||e.code==='method_not_allowed';
+      setActionMsg({ok:false,msg:unsupported
+        ? `Action "${action}" is not supported by the connected Telemt version`
         : e.message});
-    }finally{ setRot(false); }
+    }finally{ setBusyAction(null); }
   };
+
+  const rotateSecret=()=>runUserAction('/users/'+user.username+'/rotate-secret','Secret rotated successfully');
+  const enableUser=()=>runUserAction('/users/'+user.username+'/enable','User enabled');
+  const disableUser=()=>runUserAction('/users/'+user.username+'/disable','User disabled',`Disable ${user.username}? Active runtime sessions will be closed.`);
+  const resetQuota=()=>runUserAction('/users/'+user.username+'/reset-quota','Quota reset',`Reset quota for ${user.username}?`);
 
   const u=user;
   return (
@@ -623,21 +646,29 @@ function UserDetailModal({user:initialUser,onClose,onEdit,cfg}) {
           </div>
         )}
 
-        {/* Rotate secret */}
+        {/* Telemt 3.5.7 user controls */}
         <div style={{borderTop:'1px solid var(--border)',paddingTop:14,marginTop:4}}>
-          <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
-            <button className="btn btn-warn btn-sm" onClick={rotateSecret} disabled={rotating}>
-              {rotating?'Rotating…':'⟳ Rotate Secret'}
+          <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+            <button className="btn btn-warn btn-sm" onClick={rotateSecret} disabled={!!busyAction}>
+              {busyAction==='rotate-secret'?'Rotating…':'⟳ Rotate Secret'}
             </button>
-            <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>Generates a new random 32-hex secret</span>
+            {u.enabled===false ? (
+              <button className="btn btn-primary btn-sm" onClick={enableUser} disabled={!!busyAction}>Enable user</button>
+            ) : (
+              <button className="btn btn-danger btn-sm" onClick={disableUser} disabled={!!busyAction}>Disable user</button>
+            )}
+            <button className="btn btn-ghost btn-sm" onClick={resetQuota} disabled={!!busyAction}>Reset quota</button>
           </div>
-          {rotMsg&&(
+          <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)',marginTop:7}}>
+            Disable closes active runtime sessions. Reset quota clears the persisted runtime quota counter.
+          </div>
+          {actionMsg&&(
             <div style={{marginTop:8,fontFamily:'var(--mono)',fontSize:11,
-              color:rotMsg.ok?'var(--accent)':'var(--warn)',
-              background:rotMsg.ok?'var(--accent3)':'var(--warn2)',
-              border:`1px solid ${rotMsg.ok?'rgba(0,229,180,.2)':'rgba(245,168,50,.2)'}`,
+              color:actionMsg.ok?'var(--accent)':'var(--warn)',
+              background:actionMsg.ok?'var(--accent3)':'var(--warn2)',
+              border:`1px solid ${actionMsg.ok?'rgba(0,229,180,.2)':'rgba(245,168,50,.2)'}`,
               padding:'6px 10px'}}>
-              {rotMsg.ok?'✓ ':'⚠ '}{rotMsg.msg}
+              {actionMsg.ok?'✓ ':'⚠ '}{actionMsg.msg}
             </div>
           )}
         </div>
