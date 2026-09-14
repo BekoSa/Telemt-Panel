@@ -52,3 +52,13 @@ test('frontend self-hosts the original IBM Plex Mono and DM Sans typography', ()
   assert.match(html, /--sans:'DM Sans',sans-serif/);
   assert.match(html, /<link rel=["']stylesheet["'] href=["']\/assets\/app\.css["']/i);
 });
+
+test('user maintenance and configurator feedback classes have explicit UI styles', () => {
+  const source = fs.readFileSync(clientPath, 'utf8');
+  const configurator = fs.readFileSync(path.join(root, 'src', 'connection-link-configurator.jsx'), 'utf8');
+  assert.match(source, /className=["']btn btn-warn btn-sm["'][^>]*onClick=\{rotateSecret\}/);
+  assert.match(configurator, /message\.ok\?'success-box':'error-box'/);
+  assert.match(html, /\.btn-warn\s*\{[^}]*background:var\(--warn2\)[^}]*color:var\(--warn\)/s);
+  assert.match(html, /\.btn-warn:hover\s*\{/);
+  assert.match(html, /\.success-box\s*\{[^}]*color:var\(--accent\)/s);
+});
