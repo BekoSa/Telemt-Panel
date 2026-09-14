@@ -32,6 +32,10 @@ test('runtime edge exposes Telemt TLS fingerprint observability', () => {
   assert.match(source, /function EdgeTlsFingerprints\(/);
 });
 
+test('TLS fingerprint page degrades cleanly on older Telemt versions', () => {
+  assert.match(source, /TLS fingerprint telemetry is unavailable on the connected Telemt/);
+});
+
 test('users page exposes current active source IP snapshot', () => {
   assert.match(source, /useApi\('\/stats\/users\/active-ips'\)/);
   assert.match(source, /Active source IPs/);
