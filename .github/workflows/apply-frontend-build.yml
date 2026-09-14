@@ -40,6 +40,6 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package.json package-lock.json public/index.html src/client.jsx Dockerfile .gitignore README.md .github/workflows/test.yml .github/workflows/docker.yml
+          git add package.json package-lock.json public/index.html src/client.jsx Dockerfile .gitignore README.md
           git commit -m 'build: precompile and bundle frontend locally'
           git push origin HEAD:modernize/telemt-3.5.7
