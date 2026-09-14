@@ -186,12 +186,13 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
     setSaving(true);
     setMessage(null);
     try {
-      // Refresh immediately before write so If-Match fences concurrent config edits.
-      const current = await apiFn('/config');
+      let configSnapshot = telemt.config || {};
+      let writeRevision = telemt.revision;
       let patch;
       let successText;
       if (webMode) {
-        patch = buildWebVhostPatch(current?.data || {}, {
+        if (!writeRevision) throw new Error('Reload Telemt config before saving WEB vhost changes');
+        patch = buildWebVhostPatch(configSnapshot, {
           vhostIndex: telemt.vhostIndex,
           host,
           username: user.username,
@@ -199,16 +200,20 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
         });
         successText = 'Saved WEB host/profile mode to Telemt web.vhosts. The user secret itself was not changed.';
       } else {
+        // Standard generated-link settings have no index target, so refresh them immediately before write.
+        const current = await apiFn('/config');
+        configSnapshot = current?.data || {};
+        writeRevision = current?.revision || telemt.revision;
         patch = buildGeneralLinksPatch(host, port);
         successText = 'Saved to Telemt general.links. User links refreshed.';
       }
-      const saved = await apiFn('/config', 'PATCH', patch, current?.revision || telemt.revision);
+      const saved = await apiFn('/config', 'PATCH', patch, writeRevision);
       const nextConfig = webMode
-        ? {...(current?.data || {}), web:{...(current?.data?.web || {}), vhosts:patch.web.vhosts}}
-        : (current?.data || telemt.config);
+        ? {...configSnapshot, web:{...(configSnapshot.web || {}), vhosts:patch.web.vhosts}}
+        : configSnapshot;
       setTelemt(s => ({
         ...s,
-        revision: saved?.revision || current?.revision || s.revision,
+        revision: saved?.revision || writeRevision || s.revision,
         publicHost: webMode ? s.publicHost : host,
         publicPort: webMode ? s.publicPort : Number(port),
         config: nextConfig,
@@ -233,7 +238,8 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
   };
 
   const webTargetMissing = webMode && (!vhosts.length || telemt.vhostIndex === null || !vhosts[telemt.vhostIndex]);
-  const saveDisabled = saving || telemt.loading || telemt.readOnly || webTargetMissing;
+  const webRevisionMissing = webMode && !telemt.revision;
+  const saveDisabled = saving || telemt.loading || telemt.readOnly || webTargetMissing || webRevisionMissing;
 
   return (
     <div style={{borderTop:'1px solid var(--border)',paddingTop:14,marginTop:14}}>
@@ -318,7 +324,8 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
           </button>
           {telemt.loading && <span className="last-upd">checking config…</span>}
           {!telemt.loading && telemt.readOnly && <span className="badge badge-warn">Control API read-only</span>}
-          {webMode && !webTargetMissing && <span className="badge badge-info">WEB config editable</span>}
+          {webMode && !webTargetMissing && !webRevisionMissing && <span className="badge badge-info">WEB config editable</span>}
+          {webRevisionMissing && <span className="badge badge-warn">config revision unavailable</span>}
           {telemt.error && <span style={{fontSize:10,color:'var(--warn)'}}>{telemt.error}</span>}
         </div>
       </div>
