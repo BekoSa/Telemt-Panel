@@ -56,7 +56,7 @@ replaceOnce(
 `  const [busyAction,setBusyAction]=useState(null);`,
 'user busy state');
 replaceOnce(
-`  const [rotMsg,setRotMsg]=useState(null);`,
+`  const [rotMsg,setRotMsg]= useState(null);`,
 `  const [actionMsg,setActionMsg]=useState(null);`,
 'user message state');
 
