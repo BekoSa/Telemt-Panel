@@ -1033,7 +1033,7 @@ function EdgeEvents(){
 function EdgeTlsFingerprints(){
   const {data,err,loading,reload,lastTs}=useApi('/runtime/tls-fingerprints?limit=100');
   if(loading) return <div className="loading-box">Loading</div>;
-  if(err) return <ErrBox msg={err}/>;
+  if(err) return <div className="badge badge-dim">TLS fingerprint telemetry is unavailable on the connected Telemt</div>;
   if(!data?.data) return <div className="badge badge-dim">{data?.reason||'Feature disabled or unavailable'}</div>;
   const d=data.data;
   const Table=({title,rows})=>{
