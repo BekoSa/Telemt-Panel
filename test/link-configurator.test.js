@@ -88,7 +88,11 @@ test('client integrates a manual configurator with separate local and Telemt per
   assert.match(component, /WEB dd/);
   assert.match(component, /443 fixed/);
   assert.match(component, /Save public host\/port to Telemt/);
+  assert.match(component, /Save WEB host\/profile to Telemt/);
   assert.match(component, /general\.links/);
+  assert.match(component, /web\.vhosts/);
+  assert.match(component, /buildWebVhostPatch/);
   assert.match(component, /If-Match|revision/);
-  assert.match(component, /WEB config is not editable by Telemt 3\.5\.7 Control API/);
+  assert.match(component, /WEB config editable/);
+  assert.doesNotMatch(component, /WEB config is not editable by Telemt 3\.5\.7 Control API/);
 });
