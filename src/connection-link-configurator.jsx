@@ -193,7 +193,7 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
     }
   };
 
-  const saveDisabled = saving || telemt.loading || telemt.readOnly || webMode || !!generated.error;
+  const saveDisabled = saving || telemt.loading || telemt.readOnly || webMode;
 
   return (
     <div style={{borderTop:'1px solid var(--border)',paddingTop:14,marginTop:14}}>
@@ -238,7 +238,7 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
       <div className="form-row">
         <label className="form-label">{kind==='tls'?'Encoded TLS secret':'Secret (32 hex)'}</label>
         <input className="form-input mono" value={secret} onChange={e=>setSecret(e.target.value.trim())} autoComplete="off" spellCheck={false}/>
-        {webMode && <div style={{fontSize:10,color:'var(--text3)',marginTop:5}}>WEB uses HTTPS on port 443; Telegram Desktop omits the port from tg://webproxy links. FakeTLS ee secrets are not valid for WEB.</div>}
+        {webMode && <div style={{fontSize:10,color:'var(--text3)',marginTop:5}}>WEB uses HTTPS on port 443; Telegram Desktop omits the port from tg://webproxy links. FakeTLS ee secrets are not valid for WEB. A working WEB link also requires a matching Telemt WEB profile for this user on the target host.</div>}
       </div>
 
       <div className="form-row">
