@@ -1,0 +1,74 @@
+name: Apply link configurator integration
+
+on:
+  push:
+    branches:
+      - fix/globe-fonts-wss-traffic
+    paths:
+      - '.github/workflows/link-configurator-patch.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: fix/globe-fonts-wss-traffic
+          fetch-depth: 0
+
+      - name: Patch client integration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/client.jsx')
+          source = path.read_text()
+
+          import_anchor = "import '@fontsource/dm-sans/700.css';\n"
+          import_line = "import ConnectionLinkConfigurator from './connection-link-configurator.jsx';\n"
+          if import_line not in source:
+              if import_anchor not in source:
+                  raise SystemExit('font import anchor not found')
+              source = source.replace(import_anchor, import_anchor + import_line, 1)
+
+          marker = "\n        {/* Telemt 3.5.7 user controls */}\n"
+          component = """
+        <ConnectionLinkConfigurator
+          user={u}
+          apiFn={api}
+          onSaved={async()=>{
+            try{
+              const fresh=await api('/users/'+u.username);
+              if(fresh?.data) setUser(fresh.data);
+            }catch{}
+          }}
+        />
+"""
+          if '<ConnectionLinkConfigurator' not in source:
+              if marker not in source:
+                  raise SystemExit('user controls marker not found')
+              source = source.replace(marker, '\n' + component + marker, 1)
+
+          path.write_text(source)
+
+          workflow = Path('.github/workflows/link-configurator-patch.yml')
+          workflow.unlink()
+
+      - name: Verify patch before commit
+        run: |
+          grep -F "import ConnectionLinkConfigurator" src/client.jsx
+          grep -F "<ConnectionLinkConfigurator" src/client.jsx
+          npm ci
+          npm run build
+          npm test
+
+      - name: Commit integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/client.jsx .github/workflows/link-configurator-patch.yml
+          git commit -m "feat: integrate manual link configurator"
+          git push origin HEAD:fix/globe-fonts-wss-traffic
