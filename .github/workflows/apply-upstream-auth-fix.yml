@@ -1,0 +1,64 @@
+name: Apply upstream auth boundary fix
+
+on:
+  push:
+    branches:
+      - modernize/telemt-3.5.7
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: "${{ github.event.head_commit.message != 'fix: preserve panel session on Telemt 401' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Patch proxy auth boundary
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'app.js';
+          let source = fs.readFileSync(file, 'utf8');
+          const before = `    const upstream = await fetch(url, { ...opts, signal: AbortSignal.timeout(30_000) });
+    const text     = await upstream.text();
+    res.status(upstream.status)
+       .setHeader('Content-Type', 'application/json')
+       .send(text);`;
+          const after = `    const upstream = await fetch(url, { ...opts, signal: AbortSignal.timeout(30_000) });
+    const text     = await upstream.text();
+    if (upstream.status === 401) {
+      return res.status(502).json({
+        ok: false,
+        error: {
+          code: 'telemt_unauthorized',
+          message: 'Telemt API rejected the configured credentials',
+        },
+      });
+    }
+    res.status(upstream.status)
+       .setHeader('Content-Type', 'application/json')
+       .send(text);`;
+          const count = source.split(before).length - 1;
+          if (count !== 1) throw new Error(`expected one proxy response block, found ${count}`);
+          source = source.replace(before, after);
+          fs.writeFileSync(file, source);
+          NODE
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify tests
+        run: npm test
+
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app.js
+          git commit -m 'fix: preserve panel session on Telemt 401'
+          git push origin HEAD:modernize/telemt-3.5.7
