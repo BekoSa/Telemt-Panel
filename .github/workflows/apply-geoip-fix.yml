@@ -1,6 +1,10 @@
 name: Apply GeoIP regression fix
 
 on:
+  push:
+    branches: [fix/restore-zero-config-geoip]
+    paths:
+      - '.github/workflows/apply-geoip-fix.yml'
   workflow_dispatch:
 
 permissions:
