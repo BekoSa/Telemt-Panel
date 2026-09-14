@@ -40,6 +40,11 @@ replaceOnce(
   const rows=Array.isArray(page?.sessions)?page.sessions:[];
   const runtimeInstance=d?.runtime?.runtime_instance;
   const operator=d?.operator_lifecycle;
+  const lifecycleRoutes={
+    pause:'/runtime/web/lifecycle/pause',
+    drain:'/runtime/web/lifecycle/drain',
+    resume:'/runtime/web/lifecycle/resume',
+  };
 
   const reloadAll=()=>{status.reload();sessions.reload();};
   const lifecycle=async(kind)=>{
@@ -49,7 +54,7 @@ replaceOnce(
     try{
       const body={runtime_instance:runtimeInstance};
       if(kind==='drain') body.timeout_secs=30;
-      const r=await api('/runtime/web/lifecycle/'+kind,'POST',body);
+      const r=await api(lifecycleRoutes[kind],'POST',body);
       const state=r.data?.state||kind;
       setMsg(kind==='drain'?('Drain accepted · '+state):('WEB runtime '+state));
       reloadAll();
