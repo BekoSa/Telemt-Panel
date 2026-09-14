@@ -58,6 +58,21 @@ test('runtime edge exposes WEB runtime status and bounded sessions', () => {
   assert.match(source, /function WebRuntimePanel\(/);
 });
 
+test('WEB runtime exposes aggregate WEB traffic and honest WSS occupancy telemetry', () => {
+  assert.match(source, /const wssRows=rows\.filter\(row=>row\.carrier==='websocket'\|\|row\.carrier==='websocket-lanes'\)/);
+  assert.match(source, /d\?\.runtime\?\.bytes_up/);
+  assert.match(source, /d\?\.runtime\?\.bytes_down/);
+  assert.match(source, /d\?\.runtime\?\.websockets\?\.entries/);
+  assert.match(source, /d\?\.runtime\?\.budget\?\.websocket_bytes/);
+  assert.match(source, />WEB \/ WSS Traffic</);
+  assert.match(source, />WEB UP</);
+  assert.match(source, />WEB DOWN</);
+  assert.match(source, />WSS SESSIONS</);
+  assert.match(source, />WSS SOCKETS</);
+  assert.match(source, />WSS BUFFERED</);
+  assert.match(source, /WEB payload totals include HTTPS and WebSocket carriers/);
+});
+
 test('WEB runtime controls use the current runtime_instance fence', () => {
   assert.match(source, /\/runtime\/web\/lifecycle\/pause/);
   assert.match(source, /\/runtime\/web\/lifecycle\/drain/);
