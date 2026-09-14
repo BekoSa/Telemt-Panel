@@ -23,3 +23,15 @@ test('user detail exposes current Telemt user control routes', () => {
 test('legacy rotate-secret unavailable workaround is removed', () => {
   assert.doesNotMatch(source, /rotate-secret is not yet available/);
 });
+
+test('runtime edge exposes Telemt TLS fingerprint observability', () => {
+  assert.match(source, /useApi\('\/runtime\/tls-fingerprints\?limit=100'\)/);
+  assert.match(source, />Fingerprints</);
+  assert.match(source, /function EdgeTlsFingerprints\(/);
+});
+
+test('users page exposes current active source IP snapshot', () => {
+  assert.match(source, /useApi\('\/stats\/users\/active-ips'\)/);
+  assert.match(source, /Active source IPs/);
+  assert.match(source, /function ActiveUserIps\(/);
+});
