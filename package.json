@@ -10,7 +10,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --test",
-    "setup": "node setup-password.js init"
+    "setup": "node setup-password.js init",
+    "build": "esbuild src/client.jsx --bundle --minify --target=es2022 --format=iife --outfile=public/assets/app.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -18,5 +19,14 @@
     "express": "^4.22.2",
     "express-session": "^1.19.0",
     "memorystore": "^1.6.8"
+  },
+  "devDependencies": {
+    "chart.js": "^4.5.1",
+    "d3": "^7.9.0",
+    "esbuild": "^0.28.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   }
 }

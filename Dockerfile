@@ -1,3 +1,10 @@
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
 FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -13,6 +20,7 @@ COPY --from=deps /app/node_modules ./node_modules
 
 # Copy all project files (public/ included, .env excluded via .dockerignore)
 COPY . .
+COPY --from=build /app/public/assets ./public/assets
 
 # Ensure required directories exist even if empty
 RUN mkdir -p public && chown -R panel:panel /app

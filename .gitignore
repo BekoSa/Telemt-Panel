@@ -19,3 +19,6 @@ npm-debug.log*
 .vscode/
 .idea/
 *.swp
+
+# Generated frontend bundle
+public/assets/
