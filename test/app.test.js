@@ -42,7 +42,7 @@ test('GET /auth/me remains protected by session state', async () => {
 });
 
 test('CSP only permits local scripts and browser connections', async () => {
-  const response = await fetch(`${baseUrl}/healthz`);
+  const response = await fetch(`${baseUrl}/auth/me`);
   const csp = response.headers.get('content-security-policy') || '';
   assert.match(csp, /script-src 'self';/);
   assert.match(csp, /connect-src 'self';/);
