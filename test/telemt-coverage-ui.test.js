@@ -37,6 +37,14 @@ test('WEB link configurator can persist an existing vhost profile through PATCH 
   assert.doesNotMatch(links, /WEB config is not editable by Telemt 3\.5\.7 Control API/);
 });
 
+test('WEB vhost persistence uses the same config snapshot and revision that selected its index', () => {
+  assert.match(links, /let configSnapshot\s*=\s*telemt\.config\s*\|\|\s*\{\}/);
+  assert.match(links, /let writeRevision\s*=\s*telemt\.revision/);
+  assert.match(links, /buildWebVhostPatch\(configSnapshot,/);
+  assert.match(links, /apiFn\('\/config',\s*'PATCH',\s*patch,\s*writeRevision\)/);
+  assert.doesNotMatch(links, /buildWebVhostPatch\(current\?\.data/);
+});
+
 test('WEB runtime consumes Telemt 3.5.7 envelope data directly without a phantom nested data field', () => {
   assert.match(client, /const d=status\.data;/);
   assert.match(client, /const page=sessions\.data;/);
