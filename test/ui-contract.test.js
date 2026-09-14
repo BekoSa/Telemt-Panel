@@ -8,6 +8,8 @@ const path = require('node:path');
 const clientPath = path.join(__dirname, '..', 'src', 'client.jsx');
 const legacyPath = path.join(__dirname, '..', 'public', 'index.html');
 const source = fs.readFileSync(fs.existsSync(clientPath) ? clientPath : legacyPath, 'utf8');
+const webExplorerPath = path.join(__dirname, '..', 'src', 'web-sessions-explorer.jsx');
+const webExplorerSource = fs.existsSync(webExplorerPath) ? fs.readFileSync(webExplorerPath, 'utf8') : '';
 
 test('dashboard queries Telemt readiness without replacing panel liveness', () => {
   assert.match(source, /useApi\('\/health\/ready'\)/);
@@ -58,6 +60,21 @@ test('runtime edge exposes WEB runtime status and bounded sessions', () => {
   assert.match(source, /function WebRuntimePanel\(/);
 });
 
+test('WEB runtime exposes aggregate WEB traffic and honest WSS occupancy telemetry', () => {
+  assert.match(source, /const wssRows=rows\.filter\(row=>row\.carrier==='websocket'\|\|row\.carrier==='websocket-lanes'\)/);
+  assert.match(source, /d\?\.runtime\?\.bytes_up/);
+  assert.match(source, /d\?\.runtime\?\.bytes_down/);
+  assert.match(source, /d\?\.runtime\?\.websockets\?\.entries/);
+  assert.match(source, /d\?\.runtime\?\.budget\?\.websocket_bytes/);
+  assert.match(source, />WEB \/ WSS Traffic</);
+  assert.match(source, />WEB UP</);
+  assert.match(source, />WEB DOWN</);
+  assert.match(source, />WSS SESSIONS</);
+  assert.match(source, />WSS SOCKETS</);
+  assert.match(source, />WSS BUFFERED</);
+  assert.match(source, /WEB payload totals include HTTPS and WebSocket carriers/);
+});
+
 test('WEB runtime controls use the current runtime_instance fence', () => {
   assert.match(source, /\/runtime\/web\/lifecycle\/pause/);
   assert.match(source, /\/runtime\/web\/lifecycle\/drain/);
@@ -69,11 +86,12 @@ test('WEB runtime controls use the current runtime_instance fence', () => {
   assert.match(source, />Resume</);
 });
 
-test('WEB runtime can close an explicit active session reference', () => {
-  assert.match(source, /\/runtime\/web\/sessions\/close/);
-  assert.match(source, /kind:\s*['"]refs['"]/);
-  assert.match(source, /session_refs/);
-  assert.match(source, />Close session</);
+test('WEB runtime can close an explicit active session reference and track its operation', () => {
+  assert.match(webExplorerSource, /\/runtime\/web\/sessions\/close/);
+  assert.match(webExplorerSource, /kind:\s*['"]refs['"]/);
+  assert.match(webExplorerSource, /session_refs/);
+  assert.match(webExplorerSource, /\/runtime\/web\/operations\//);
+  assert.match(webExplorerSource, />Close</);
 });
 
 test('Telemt config editor preserves optimistic concurrency revision', () => {

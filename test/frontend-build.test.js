@@ -32,3 +32,35 @@ test('client source bundles visualization dependencies and world topology locall
   assert.match(source, /from ['"]world-atlas\/countries-110m\.json['"]/);
   assert.doesNotMatch(source, /cdn\.jsdelivr\.net\/npm\/world-atlas/i);
 });
+
+test('globe renderer uses the imported d3 namespace without self-shadowing it', () => {
+  const source = fs.readFileSync(clientPath, 'utf8');
+  assert.doesNotMatch(source, /const\s+d3\s*=\s*d3\s*;/);
+  assert.match(source, /topojson\.feature\(world,world\.objects\.countries\)/);
+  assert.match(source, /d3\.geoOrthographic\(\)/);
+});
+
+test('frontend self-hosts the original IBM Plex Mono and DM Sans typography', () => {
+  const source = fs.readFileSync(clientPath, 'utf8');
+  assert.match(pkg.devDependencies?.['@fontsource/ibm-plex-mono'] || '', /5\.3\.0/);
+  assert.match(pkg.devDependencies?.['@fontsource/dm-sans'] || '', /5\.3\.0/);
+  assert.match(source, /@fontsource\/ibm-plex-mono\/400\.css/);
+  assert.match(source, /@fontsource\/ibm-plex-mono\/600\.css/);
+  assert.match(source, /@fontsource\/dm-sans\/400\.css/);
+  assert.match(source, /@fontsource\/dm-sans\/700\.css/);
+  assert.match(html, /--mono:'IBM Plex Mono',monospace/);
+  assert.match(html, /--sans:'DM Sans',sans-serif/);
+  assert.match(html, /<link rel=["']stylesheet["'] href=["']\/assets\/app\.css["']/i);
+});
+
+test('user maintenance and configurator feedback classes have explicit UI styles', () => {
+  const source = fs.readFileSync(clientPath, 'utf8');
+  const configurator = fs.readFileSync(path.join(root, 'src', 'connection-link-configurator.jsx'), 'utf8');
+  const userStyles = fs.readFileSync(path.join(root, 'src', 'user-ui.css'), 'utf8');
+  assert.match(source, /className=["']btn btn-warn btn-sm["'][^>]*onClick=\{rotateSecret\}/);
+  assert.match(configurator, /import ['"]\.\/user-ui\.css['"]/);
+  assert.match(configurator, /message\.ok\?'success-box':'error-box'/);
+  assert.match(userStyles, /\.btn-warn\s*\{[^}]*background:var\(--warn2\)[^}]*color:var\(--warn\)/s);
+  assert.match(userStyles, /\.btn-warn:hover:not\(:disabled\)\s*\{/);
+  assert.match(userStyles, /\.success-box\s*\{[^}]*color:var\(--accent\)/s);
+});

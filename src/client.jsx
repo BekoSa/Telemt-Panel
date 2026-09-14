@@ -4,6 +4,20 @@ import Chart from 'chart.js/auto';
 import * as d3 from 'd3';
 import * as topojson from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/ibm-plex-mono/600.css';
+import '@fontsource/ibm-plex-mono/400-italic.css';
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/dm-sans/600.css';
+import '@fontsource/dm-sans/700.css';
+import ConnectionLinkConfigurator from './connection-link-configurator.jsx';
+import userPolicy from './user-policy.cjs';
+import UserQuotaRuntime from './user-quota-runtime.jsx';
+import WebSessionsExplorer from './web-sessions-explorer.jsx';
+
+const {buildCreateUserBody,buildPatchUserBody}=userPolicy;
 
 
 // ─── Icons ──────────────────────────────────────────────────────────────────
@@ -329,69 +343,44 @@ function ActiveUserIps(){
 }
 
 function UserModal({user,onClose}) {
-  const [form,setForm] = useState({username:user?.username||'',secret:'',user_ad_tag:user?.user_ad_tag||'',max_tcp_conns:user?.max_tcp_conns||'',expiration_rfc3339:user?.expiration_rfc3339||'',data_quota_bytes:user?.data_quota_bytes||'',max_unique_ips:user?.max_unique_ips||''});
+  const [form,setForm] = useState({
+    username:user?.username||'', secret:'', user_ad_tag:user?.user_ad_tag??'',
+    max_tcp_conns:user?.max_tcp_conns??'', expiration_rfc3339:user?.expiration_rfc3339??'',
+    data_quota_bytes:user?.data_quota_bytes??'', rate_limit_up_bps:user?.rate_limit_up_bps??'',
+    rate_limit_down_bps:user?.rate_limit_down_bps??'', max_unique_ips:user?.max_unique_ips??'',
+    enabled:user?.enabled!==false,
+  });
   const [loading,setL] = useState(false);
-  const [err,setErr]   = useState(null);
-  const nums = ['max_tcp_conns','data_quota_bytes','max_unique_ips'];
-  const set  = (name) => (e) => setForm(f => ({...f, [name]: e.target.value}));
-  const submit = async () => {
+  const [err,setErr] = useState(null);
+  const set = name => e => setForm(f=>({...f,[name]:e.target.value}));
+  const submit = async()=>{
     setL(true); setErr(null);
-    try {
-      const body = {};
-      ['secret','user_ad_tag','max_tcp_conns','expiration_rfc3339','data_quota_bytes','max_unique_ips'].forEach(f=>{
-        if (form[f]!==''&&form[f]!==undefined) body[f] = nums.includes(f)?Number(form[f]):form[f];
-      });
-      if (!user) { body.username=form.username; await api('/users','POST',body); }
-      else {
-        // Fetch current revision for optimistic concurrency
-        let ifMatch = null;
-        try { const cur=await api('/users/'+user.username); ifMatch=cur.revision; } catch{}
+    try{
+      const body=user?buildPatchUserBody(user,form):buildCreateUserBody(form);
+      if(!user) await api('/users','POST',body);
+      else{
+        let ifMatch=null;
+        try{const cur=await api('/users/'+user.username);ifMatch=cur.revision;}catch{}
         await api('/users/'+user.username,'PATCH',body,ifMatch);
       }
       onClose();
-    } catch(e){ setErr(e.message); }
-    finally{ setL(false); }
+    }catch(e){setErr(e.message);}finally{setL(false);}
   };
-  return (
-    <div className="modal-overlay">
-      <div className="modal">
-        <div className="modal-title">{user?'Edit: '+user.username:'Create User'}</div>
-        <ErrBox msg={err}/>
-        {!user&&<div className="form-row">
-          <label className="form-label">Username *</label>
-          <input className="form-input" value={form.username} onChange={set('username')} placeholder="[A-Za-z0-9_.-], 1..64 chars" autoFocus/>
-        </div>}
-        <div className="form-row">
-          <label className="form-label">Secret</label>
-          <input className="form-input" value={form.secret} onChange={set('secret')} placeholder="32 hex chars (auto-generated if empty)"/>
-        </div>
-        <div className="form-row">
-          <label className="form-label">Ad Tag</label>
-          <input className="form-input" value={form.user_ad_tag} onChange={set('user_ad_tag')} placeholder="32 hex chars (optional)"/>
-        </div>
-        <div className="form-row">
-          <label className="form-label">Max TCP Connections</label>
-          <input className="form-input" type="number" value={form.max_tcp_conns} onChange={set('max_tcp_conns')} placeholder="Unlimited if empty"/>
-        </div>
-        <div className="form-row">
-          <label className="form-label">Expiration (RFC3339)</label>
-          <input className="form-input" value={form.expiration_rfc3339} onChange={set('expiration_rfc3339')} placeholder="2026-01-01T00:00:00Z"/>
-        </div>
-        <div className="form-row">
-          <label className="form-label">Data Quota (bytes)</label>
-          <input className="form-input" type="number" value={form.data_quota_bytes} onChange={set('data_quota_bytes')} placeholder="Unlimited if empty"/>
-        </div>
-        <div className="form-row">
-          <label className="form-label">Max Unique IPs</label>
-          <input className="form-input" type="number" value={form.max_unique_ips} onChange={set('max_unique_ips')} placeholder="Unlimited if empty"/>
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={submit} disabled={loading}>{loading?'Saving…':user?'Save':'Create'}</button>
-        </div>
-      </div>
-    </div>
-  );
+  return <div className="modal-overlay"><div className="modal">
+    <div className="modal-title">{user?'Edit: '+user.username:'Create User'}</div><ErrBox msg={err}/>
+    {!user&&<div className="form-row"><label className="form-label">Username *</label><input className="form-input" value={form.username} onChange={set('username')} placeholder="[A-Za-z0-9_.-], 1..64 chars" autoFocus/></div>}
+    <div className="form-row"><label className="form-label">Secret</label><input className="form-input" value={form.secret} onChange={set('secret')} placeholder="32 hex chars (auto-generated if empty)" autoComplete="off"/></div>
+    <div className="form-row"><label className="form-label">Ad Tag</label><input className="form-input" value={form.user_ad_tag} onChange={set('user_ad_tag')} placeholder="32 hex chars (optional)"/></div>
+    <div className="form-row"><label className="form-label">Max TCP Connections</label><input className="form-input" type="number" min="0" value={form.max_tcp_conns} onChange={set('max_tcp_conns')} placeholder="Unlimited if empty"/></div>
+    <div className="form-row"><label className="form-label">Expiration (RFC3339)</label><input className="form-input" value={form.expiration_rfc3339} onChange={set('expiration_rfc3339')} placeholder="2027-01-01T00:00:00Z"/></div>
+    <div className="form-row"><label className="form-label">Data Quota (bytes)</label><input className="form-input" type="number" min="0" value={form.data_quota_bytes} onChange={set('data_quota_bytes')} placeholder="Unlimited if empty"/></div>
+    <div className="form-row"><label className="form-label">Upload rate limit (bps)</label><input className="form-input" type="number" min="0" value={form.rate_limit_up_bps} onChange={set('rate_limit_up_bps')} placeholder="Unlimited if empty"/></div>
+    <div className="form-row"><label className="form-label">Download rate limit (bps)</label><input className="form-input" type="number" min="0" value={form.rate_limit_down_bps} onChange={set('rate_limit_down_bps')} placeholder="Unlimited if empty"/></div>
+    <div className="form-row"><label className="form-label">Max Unique IPs</label><input className="form-input" type="number" min="0" value={form.max_unique_ips} onChange={set('max_unique_ips')} placeholder="Unlimited if empty"/></div>
+    {!user&&<label style={{display:'flex',alignItems:'center',gap:8,fontFamily:'var(--mono)',fontSize:12,color:'var(--text2)',marginBottom:14}}><input type="checkbox" checked={form.enabled} onChange={e=>setForm(f=>({...f,enabled:e.target.checked}))}/>Create enabled</label>}
+    {user&&<div className="last-upd" style={{marginBottom:14,lineHeight:1.5}}><strong>Clear configured overrides:</strong> clear an optional field and Save to remove that per-user override. Secret remains unchanged when empty.</div>}
+    <div className="modal-footer"><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={submit} disabled={loading}>{loading?'Saving…':user?'Save':'Create'}</button></div>
+  </div></div>;
 }
 
 function UserDetailModal({user:initialUser,onClose,onEdit,cfg}) {
@@ -453,8 +442,10 @@ function UserDetailModal({user:initialUser,onClose,onEdit,cfg}) {
           {[
             ['connections (live)', u.current_connections],
             ['total traffic',      fmt_bytes(u.total_octets)],
-            ['data quota',         u.data_quota_bytes?fmt_bytes(u.data_quota_bytes):'∞'],
-            ['max TCP conns',      u.max_tcp_conns||'∞'],
+            ['data quota',         u.data_quota_bytes!=null?fmt_bytes(u.data_quota_bytes):'∞'],
+            ['upload limit',       u.rate_limit_up_bps!=null?u.rate_limit_up_bps+' bps':'∞'],
+            ['download limit',     u.rate_limit_down_bps!=null?u.rate_limit_down_bps+' bps':'∞'],
+            ['max TCP conns',      u.max_tcp_conns??'∞'],
             ['max unique IPs',     u.max_unique_ips||'∞'],
             ['expires',            u.expiration_rfc3339||'never'],
             ['active unique IPs',  u.active_unique_ips],
@@ -495,6 +486,20 @@ function UserDetailModal({user:initialUser,onClose,onEdit,cfg}) {
             ))}
           </div>
         )}
+
+
+        <UserQuotaRuntime user={u} apiFn={api}/>
+
+        <ConnectionLinkConfigurator
+          user={u}
+          apiFn={api}
+          onSaved={async()=>{
+            try{
+              const fresh=await api('/users/'+u.username);
+              if(fresh?.data) setUser(fresh.data);
+            }catch{}
+          }}
+        />
 
         {/* Telemt 3.5.7 user controls */}
         <div style={{borderTop:'1px solid var(--border)',paddingTop:14,marginTop:4}}>
@@ -909,9 +914,10 @@ function WebRuntimePanel(){
   const [busy,setBusy]=useState(null);
   const [msg,setMsg]=useState(null);
   const [actionErr,setActionErr]=useState(null);
-  const d=status.data?.data;
-  const page=sessions.data?.data;
+  const d=status.data;
+  const page=sessions.data;
   const rows=Array.isArray(page?.sessions)?page.sessions:[];
+  const wssRows=rows.filter(row=>row.carrier==='websocket'||row.carrier==='websocket-lanes');
   const runtimeInstance=d?.runtime?.runtime_instance;
   const operator=d?.operator_lifecycle;
   const lifecycleRoutes={
@@ -935,22 +941,6 @@ function WebRuntimePanel(){
     }catch(e){setActionErr(e.message);}
     finally{setBusy(null);}
   };
-  const closeSession=async(sessionRef)=>{
-    if(!runtimeInstance) return;
-    if(!confirm('Close this WEB session? Existing streams in this session will be terminated.')) return;
-    setBusy(sessionRef); setMsg(null); setActionErr(null);
-    try{
-      const r=await api('/runtime/web/sessions/close','POST',{
-        runtime_instance:runtimeInstance,
-        selector:{kind:'refs',session_refs:[sessionRef]},
-      });
-      const op=r.data?.operation_id;
-      setMsg(op?'Close accepted · operation '+op:'Close accepted');
-      sessions.reload(); status.reload();
-    }catch(e){setActionErr(e.message);}
-    finally{setBusy(null);}
-  };
-
   if(status.loading) return <div className="loading-box">Loading WEB runtime</div>;
   if(webUnsupported) return <div className="badge badge-dim">WEB Runtime is unavailable on the connected Telemt</div>;
   if(status.err) return <ErrBox msg={status.err}/>;
@@ -965,6 +955,17 @@ function WebRuntimePanel(){
       <div className="stat-card"><div className="stat-label">STREAMS</div><div className="stat-value">{d?.runtime?.streams?.live??'—'}</div><div className="stat-sub">generation {d?.runtime?.generation_id??'—'}</div></div>
     </div>
     <div className="card">
+      <div className="card-title">WEB / WSS Traffic</div>
+      <div className="card-grid" style={{marginBottom:10}}>
+        <div className="stat-card"><div className="stat-label">WEB UP</div><div className="stat-value accent" style={{fontSize:18}}>{fmt_bytes(d?.runtime?.bytes_up)}</div><div className="stat-sub">carrier payload sent upstream</div></div>
+        <div className="stat-card"><div className="stat-label">WEB DOWN</div><div className="stat-value" style={{fontSize:18}}>{fmt_bytes(d?.runtime?.bytes_down)}</div><div className="stat-sub">carrier payload sent downstream</div></div>
+        <div className="stat-card"><div className="stat-label">WSS SESSIONS</div><div className="stat-value accent">{wssRows.length}</div><div className="stat-sub">websocket + websocket-lanes</div></div>
+        <div className="stat-card"><div className="stat-label">WSS SOCKETS</div><div className="stat-value">{d?.runtime?.websockets?.entries??'—'}</div><div className="stat-sub">live registry entries</div></div>
+        <div className="stat-card"><div className="stat-label">WSS BUFFERED</div><div className="stat-value warn" style={{fontSize:18}}>{fmt_bytes(d?.runtime?.budget?.websocket_bytes)}</div><div className="stat-sub">current websocket buffer budget</div></div>
+      </div>
+      <div className="last-upd">WEB payload totals include HTTPS and WebSocket carriers in Telemt 3.5.7; the Control API does not expose cumulative WSS-only byte counters.</div>
+    </div>
+    <div className="card">
       <div className="card-title" style={{justifyContent:'space-between'}}><span>Operator lifecycle</span><span className="mono" style={{fontSize:10,color:'var(--text3)'}}>{runtimeInstance||'runtime unavailable'}</span></div>
       <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:12}}>
         <button className="btn btn-ghost btn-sm" disabled={!runtimeInstance||!!busy||operator?.state==='paused'} onClick={()=>lifecycle('pause')}>Pause</button>
@@ -977,24 +978,7 @@ function WebRuntimePanel(){
       {d?.listeners?.length>0&&<div style={{marginTop:12}}><div className="stat-label">LISTENERS</div><div className="tag-list">{d.listeners.map(x=><span className="tag" key={x}>{x}</span>)}</div></div>}
       {d?.runtime?.partial?.length>0&&<div className="badge badge-warn" style={{marginTop:12}}>partial snapshot: {d.runtime.partial.join(', ')}</div>}
     </div>
-    <div className="card">
-      <div className="card-title" style={{justifyContent:'space-between'}}><span>Active WEB sessions</span><span>{rows.length} / 100</span></div>
-      {sessions.loading?<div className="loading-box">Loading sessions</div>:rows.length===0?<div className="empty-box">No active WEB sessions</div>:<div className="tbl-wrap"><table>
-        <thead><tr><th>Session</th><th>User / IP</th><th>Host</th><th>Carrier</th><th>State</th><th>Streams</th><th>Age</th><th>Action</th></tr></thead>
-        <tbody>{rows.map(row=><tr key={row.session_ref}>
-          <td className="mono" style={{fontSize:10,maxWidth:220}} title={row.session_ref}>{row.session_ref}<CopyBtn text={row.session_ref}/></td>
-          <td><div className="mono" style={{color:'var(--accent)'}}>{row.user}</div><div className="mono" style={{fontSize:10,color:'var(--text3)'}}>{row.client_ip}</div></td>
-          <td className="mono" style={{fontSize:11}}>{row.host}</td>
-          <td><span className="badge badge-info">{row.carrier}</span></td>
-          <td><span className={`badge ${row.state==='healthy'?'badge-ok':row.state==='closing'?'badge-warn':'badge-dim'}`}>{row.state}</span></td>
-          <td className="mono">{row.streams}</td>
-          <td className="mono">{row.age_ms!=null?Math.round(row.age_ms/1000)+'s':'—'}</td>
-          <td><button className="btn btn-danger btn-sm" disabled={!runtimeInstance||!!busy} onClick={()=>closeSession(row.session_ref)}>Close session</button></td>
-        </tr>)}</tbody>
-      </table></div>}
-      {page?.next_cursor&&<div className="last-upd" style={{marginTop:10}}>More sessions exist; current panel shows the first bounded page.</div>}
-      {(page?.partial?.length>0||page?.partial_sessions>0)&&<div className="badge badge-warn" style={{marginTop:10}}>partial session snapshot</div>}
-    </div>
+    <WebSessionsExplorer apiFn={api}/>
   </div>;
 }
 
@@ -1299,7 +1283,6 @@ function GlobeMap({users}) {
   const draw = useCallback(()=>{
     const canvas=canvasRef.current;
     if(!canvas||!d3) return;
-    const d3=d3;
     const ctx=canvas.getContext('2d');
     const W=canvas.parentElement?.clientWidth||700;
     const H=390;
