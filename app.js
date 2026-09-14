@@ -395,6 +395,15 @@ app.use('/api', requireAuth, async (req, res) => {
   try {
     const upstream = await fetch(url, { ...opts, signal: AbortSignal.timeout(30_000) });
     const text     = await upstream.text();
+    if (upstream.status === 401) {
+      return res.status(502).json({
+        ok: false,
+        error: {
+          code: 'telemt_unauthorized',
+          message: 'Telemt API rejected the configured credentials',
+        },
+      });
+    }
     res.status(upstream.status)
        .setHeader('Content-Type', 'application/json')
        .send(text);
