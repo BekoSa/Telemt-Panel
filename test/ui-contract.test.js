@@ -5,7 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const source = fs.readFileSync(path.join(__dirname, '..', 'public', 'index.html'), 'utf8');
+const clientPath = path.join(__dirname, '..', 'src', 'client.jsx');
+const legacyPath = path.join(__dirname, '..', 'public', 'index.html');
+const source = fs.readFileSync(fs.existsSync(clientPath) ? clientPath : legacyPath, 'utf8');
 
 test('dashboard queries Telemt readiness without replacing panel liveness', () => {
   assert.match(source, /useApi\('\/health\/ready'\)/);
