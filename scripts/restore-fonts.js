@@ -34,5 +34,5 @@ fs.writeFileSync(htmlPath, html);
 
 const pkgPath = path.join(__dirname, '..', 'package.json');
 const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-pkg.scripts.build = 'esbuild src/client.jsx --bundle --minify --target=es2022 --format=iife --loader:.woff2=file --outfile=public/assets/app.js';
+pkg.scripts.build = 'esbuild src/client.jsx --bundle --minify --target=es2022 --format=iife --loader:.woff2=file --loader:.woff=file --outfile=public/assets/app.js';
 fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
