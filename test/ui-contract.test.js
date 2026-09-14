@@ -36,6 +36,15 @@ test('TLS fingerprint page degrades cleanly on older Telemt versions', () => {
   assert.match(source, /TLS fingerprint telemetry is unavailable on the connected Telemt/);
 });
 
+test('optional capabilities only degrade on route absence and preserve real API failures', () => {
+  assert.match(source, /const isUnsupportedCapability\s*=\s*\(code,status\)\s*=>\s*status===404\s*\|\|\s*code==='not_found'/);
+  assert.match(source, /setErrCode\(e\.code\|\|null\)/);
+  assert.match(source, /setErrStatus\(e\.status\|\|null\)/);
+  assert.match(source, /isUnsupportedCapability\(ready\.errCode,ready\.errStatus\)/);
+  assert.ok((source.match(/isUnsupportedCapability\(errCode,errStatus\)/g) || []).length >= 2);
+  assert.match(source, /isUnsupportedCapability\(status\.errCode,status\.errStatus\)/);
+});
+
 test('users page exposes current active source IP snapshot', () => {
   assert.match(source, /useApi\('\/stats\/users\/active-ips'\)/);
   assert.match(source, /Active source IPs/);
