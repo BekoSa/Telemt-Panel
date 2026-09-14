@@ -71,7 +71,7 @@ fs.writeFileSync(htmlPath, html);
 
 const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
 pkg.scripts = pkg.scripts || {};
-pkg.scripts.build = "esbuild src/client.jsx --bundle --minify --target=es2022 --format=iife --define:process.env.NODE_ENV='\\\"production\\\"' --outfile=public/assets/app.js";
+pkg.scripts.build = 'esbuild src/client.jsx --bundle --minify --target=es2022 --format=iife --outfile=public/assets/app.js';
 fs.writeFileSync(packagePath, JSON.stringify(pkg, null, 2) + '\n');
 
 const gitignorePath = path.join(root, '.gitignore');
