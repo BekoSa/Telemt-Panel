@@ -73,6 +73,8 @@ curl http://127.0.0.1:3000/healthz
 | `PANEL_USERNAME` | — | Логин (default: `admin`) |
 | `TELEMT_API_URL` | — | Адрес Telemt API (default: `http://127.0.0.1:9091`) |
 | `TELEMT_API_TOKEN` | — | Authorization header для Telemt API |
+| `GEOIP_API_URL` | — | HTTPS batch endpoint для opt-in геолокации IP; без него GeoIP выключен |
+| `GEOIP_API_KEY` | — | Опциональный ключ GeoIP-провайдера (добавляется как query `key`) |
 | `PORT` | — | Порт панели (default: `3000`) |
 | `COOKIE_SECURE` | — | `true` только при HTTPS |
 | `TRUST_PROXY` | — | `true` за nginx/caddy |
@@ -151,7 +153,8 @@ telemt-panel/
 - Все запросы к Telemt идут через серверный прокси `/api/v1/*`
 - CSRF-токен обязателен для всех мутирующих запросов
 - Панель и Docker healthcheck используют отдельный публичный `/healthz`, который не раскрывает конфигурацию или состояние сессий
-- Геолокация IP через `ip-api.com` пока выполняется на сервере с 10-минутным кэшем; замена этого HTTP-зависимого механизма запланирована отдельным этапом модернизации
+- Геолокация IP выключена по умолчанию: адреса клиентов не отправляются третьей стороне без явной настройки `GEOIP_API_URL`; внешний endpoint обязан использовать HTTPS (loopback HTTP разрешён только для локального proxy)
+- Для ip-api используйте Pro HTTPS batch endpoint и ключ; бесплатный HTTP endpoint намеренно больше не используется
 
 ## Лицензия
 

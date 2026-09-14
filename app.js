@@ -20,6 +20,20 @@ const TRUST_PROXY    = process.env.TRUST_PROXY === 'true';
 const IDLE_MINUTES   = parseInt(process.env.SESSION_IDLE_MINUTES || '60');
 const BIND_IP        = process.env.BIND_SESSION_IP === 'true';
 const AUDIT_MAX      = parseInt(process.env.AUDIT_LOG_MAX || '1000');
+const GEOIP_API_URL = (process.env.GEOIP_API_URL || '').trim();
+const GEOIP_API_KEY = (process.env.GEOIP_API_KEY || '').trim();
+let GEOIP_ENDPOINT = null;
+if (GEOIP_API_URL) {
+  try {
+    const parsed = new URL(GEOIP_API_URL);
+    const loopbackHttp = parsed.protocol === 'http:' && ['localhost','127.0.0.1','::1','[::1]'].includes(parsed.hostname);
+    if (parsed.protocol !== 'https:' && !loopbackHttp) throw new Error('endpoint must use HTTPS (or loopback HTTP for a local proxy)');
+    GEOIP_ENDPOINT = parsed;
+  } catch (err) {
+    console.error(`[FATAL] Invalid GEOIP_API_URL: ${err.message}`);
+    process.exit(1);
+  }
+}
 
 // Fatal guards
 if (!SECRET) {
@@ -58,11 +72,14 @@ app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.setHeader('Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; " +
+    "script-src 'self'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "font-src 'self'; " +
     "img-src 'self' data:; " +
-    "connect-src 'self' https://cdn.jsdelivr.net http://ip-api.com; " +
+    "connect-src 'self'; " +
+    "object-src 'none'; " +
+    "base-uri 'none'; " +
+    "form-action 'self'; " +
     "frame-ancestors 'none';"
   );
   next();
@@ -303,6 +320,7 @@ app.get('/panel/config', requireAuth, (req, res) => {
     trustProxy:          TRUST_PROXY,
     auditLogMax:         AUDIT_MAX,
     auditLogCurrent:     auditLog.length,
+    geoIpEnabled:        !!GEOIP_ENDPOINT,
     rateLimitWindow:     '5 min',
     rateLimitMaxTries:   10,
   }});
@@ -336,6 +354,7 @@ function isPrivateIp(ip) {
 app.post('/panel/geo', requireAuth, async (req, res) => {
   const { ips } = req.body || {};
   if (!Array.isArray(ips) || !ips.length) return res.json({ ok: true, data: [] });
+  if (!GEOIP_ENDPOINT) return res.json({ ok: true, data: [], disabled: true });
 
   const now     = Date.now();
   const result  = [];
@@ -350,7 +369,10 @@ app.post('/panel/geo', requireAuth, async (req, res) => {
 
   if (toFetch.length > 0) {
     try {
-      const r = await fetch('http://ip-api.com/batch?fields=status,message,lat,lon,country,city,query', {
+      const geoUrl = new URL(GEOIP_ENDPOINT.toString());
+      geoUrl.searchParams.set('fields', 'status,message,lat,lon,country,city,query');
+      if (GEOIP_API_KEY) geoUrl.searchParams.set('key', GEOIP_API_KEY);
+      const r = await fetch(geoUrl, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(toFetch.map(ip => ({ query: ip }))),
