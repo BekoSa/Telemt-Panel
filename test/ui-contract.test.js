@@ -60,3 +60,19 @@ test('WEB runtime can close an explicit active session reference', () => {
   assert.match(source, /session_refs/);
   assert.match(source, />Close session</);
 });
+
+test('Telemt config editor preserves optimistic concurrency revision', () => {
+  assert.match(source, /function TelemtConfigPage\(/);
+  assert.match(source, /api\('\/config'\)/);
+  assert.match(source, /api\('\/config','PATCH',patch,revision\)/);
+  assert.match(source, /revision_conflict/);
+  assert.match(source, />Configuration</);
+});
+
+test('Telemt config reload uses bounded drain with rollback and polls status', () => {
+  assert.match(source, /api\('\/system\/reload','POST',\{mode:'drain',timeout_secs:30,failure_policy:'rollback'\}\)/);
+  assert.match(source, /api\('\/system\/reload\/'\+reloadId\)/);
+  assert.match(source, /deferred_process_fields/);
+  assert.match(source, /rolled_back/);
+  assert.match(source, /succeeded/);
+});
