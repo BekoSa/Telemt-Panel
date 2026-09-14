@@ -4,6 +4,14 @@ import Chart from 'chart.js/auto';
 import * as d3 from 'd3';
 import * as topojson from 'topojson-client';
 import worldAtlas from 'world-atlas/countries-110m.json';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+import '@fontsource/ibm-plex-mono/600.css';
+import '@fontsource/ibm-plex-mono/400-italic.css';
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/dm-sans/600.css';
+import '@fontsource/dm-sans/700.css';
 
 
 // ─── Icons ──────────────────────────────────────────────────────────────────
