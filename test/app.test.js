@@ -9,6 +9,7 @@ process.env.PANEL_PASSWORD = 'test-password';
 process.env.TELEMT_API_URL = 'http://127.0.0.1:1';
 delete process.env.GEOIP_API_URL;
 delete process.env.GEOIP_API_KEY;
+delete process.env.GEOIP_DISABLED;
 
 const { createApp } = require('../app');
 
@@ -49,7 +50,7 @@ test('CSP only permits local scripts and browser connections', async () => {
   assert.doesNotMatch(csp, /cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|cdn\.jsdelivr\.net|ip-api\.com/);
 });
 
-test('GeoIP enrichment is disabled by default instead of sending IPs to a third party', async () => {
+test('GeoIP enrichment is enabled securely by default while private IPs stay local', async () => {
   const login = await fetch(`${baseUrl}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -61,6 +62,12 @@ test('GeoIP enrichment is disabled by default instead of sending IPs to a third 
   assert.ok(cookie);
   assert.ok(loginBody.csrfToken);
 
+  const configResponse = await fetch(`${baseUrl}/panel/config`, { headers: { Cookie: cookie } });
+  assert.equal(configResponse.status, 200);
+  const configBody = await configResponse.json();
+  assert.equal(configBody.data.geoIpEnabled, true);
+  assert.equal(configBody.data.geoIpProvider, 'ip-api.io');
+
   const response = await fetch(`${baseUrl}/panel/geo`, {
     method: 'POST',
     headers: {
@@ -71,5 +78,5 @@ test('GeoIP enrichment is disabled by default instead of sending IPs to a third 
     body: JSON.stringify({ ips: ['127.0.0.1'] }),
   });
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { ok: true, data: [], disabled: true });
+  assert.deepEqual(await response.json(), { ok: true, data: [], meta: { sent: 1, resolved: 0 } });
 });
