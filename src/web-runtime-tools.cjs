@@ -1,5 +1,7 @@
 'use strict';
 
+const {validateHost} = require('./link-configurator.cjs');
+
 const FILTER_ORDER = ['ip','host','user','user_agent_id','key_id','carrier','state'];
 const TERMINAL_STATES = new Set(['completed','cancelled','failed']);
 
@@ -22,7 +24,7 @@ function buildWebVhostPatch(config, {vhostIndex, host, username, secretMode}) {
     throw new Error('Select an existing WEB vhost before saving');
   }
   if (!['plain','dd'].includes(secretMode)) throw new Error('WEB secret mode must be plain or dd');
-  if (!host || typeof host !== 'string') throw new Error('WEB host is required');
+  const safeHost = validateHost(host);
   if (!username || typeof username !== 'string') throw new Error('WEB username is required');
 
   const nextVhosts = vhosts.map((vhost, index) => {
@@ -31,7 +33,7 @@ function buildWebVhostPatch(config, {vhostIndex, host, username, secretMode}) {
     const userIndex = profiles.findIndex(profile => profile?.user === username);
     if (userIndex >= 0) profiles[userIndex] = {...profiles[userIndex], secret_mode: secretMode};
     else profiles.push({user: username, secret_mode: secretMode});
-    return {...vhost, host, profiles};
+    return {...vhost, host:safeHost, profiles};
   });
 
   return {web:{vhosts:nextVhosts}};
