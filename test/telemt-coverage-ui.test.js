@@ -37,6 +37,13 @@ test('WEB link configurator can persist an existing vhost profile through PATCH 
   assert.doesNotMatch(links, /WEB config is not editable by Telemt 3\.5\.7 Control API/);
 });
 
+test('WEB runtime consumes Telemt 3.5.7 envelope data directly without a phantom nested data field', () => {
+  assert.match(client, /const d=status\.data;/);
+  assert.match(client, /const page=sessions\.data;/);
+  assert.doesNotMatch(client, /status\.data\?\.data/);
+  assert.doesNotMatch(client, /sessions\.data\?\.data/);
+});
+
 test('WEB sessions explorer covers filters detail pagination operation polling and operator resets', () => {
   assert.ok(fs.existsSync(webPath), 'src/web-sessions-explorer.jsx must exist');
   const web = fs.readFileSync(webPath, 'utf8');
