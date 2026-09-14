@@ -24,27 +24,31 @@ jobs:
           const fs = require('node:fs');
           const file = 'app.js';
           let source = fs.readFileSync(file, 'utf8');
-          const before = `    const upstream = await fetch(url, { ...opts, signal: AbortSignal.timeout(30_000) });
-    const text     = await upstream.text();
-    res.status(upstream.status)
-       .setHeader('Content-Type', 'application/json')
-       .send(text);`;
-          const after = `    const upstream = await fetch(url, { ...opts, signal: AbortSignal.timeout(30_000) });
-    const text     = await upstream.text();
-    if (upstream.status === 401) {
-      return res.status(502).json({
-        ok: false,
-        error: {
-          code: 'telemt_unauthorized',
-          message: 'Telemt API rejected the configured credentials',
-        },
-      });
-    }
-    res.status(upstream.status)
-       .setHeader('Content-Type', 'application/json')
-       .send(text);`;
+          const before = [
+            "    const upstream = await fetch(url, { ...opts, signal: AbortSignal.timeout(30_000) });",
+            "    const text     = await upstream.text();",
+            "    res.status(upstream.status)",
+            "       .setHeader('Content-Type', 'application/json')",
+            "       .send(text);",
+          ].join('\n');
+          const after = [
+            "    const upstream = await fetch(url, { ...opts, signal: AbortSignal.timeout(30_000) });",
+            "    const text     = await upstream.text();",
+            "    if (upstream.status === 401) {",
+            "      return res.status(502).json({",
+            "        ok: false,",
+            "        error: {",
+            "          code: 'telemt_unauthorized',",
+            "          message: 'Telemt API rejected the configured credentials',",
+            "        },",
+            "      });",
+            "    }",
+            "    res.status(upstream.status)",
+            "       .setHeader('Content-Type', 'application/json')",
+            "       .send(text);",
+          ].join('\n');
           const count = source.split(before).length - 1;
-          if (count !== 1) throw new Error(`expected one proxy response block, found ${count}`);
+          if (count !== 1) throw new Error('expected one proxy response block, found ' + count);
           source = source.replace(before, after);
           fs.writeFileSync(file, source);
           NODE
