@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   refactor:
-    if: ${{ github.event.head_commit.message != 'refactor: make panel app testable' }}
+    if: "${{ github.event.head_commit.message != 'refactor: make panel app testable' }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
