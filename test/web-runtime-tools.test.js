@@ -69,6 +69,16 @@ test('WEB vhost patch refuses to invent a vhost when Telemt has no selected vhos
   }), /existing WEB vhost/i);
 });
 
+test('WEB vhost patch validates host like generated connection links', () => {
+  const config = {web:{vhosts:[{host:'proxy.example.com',profiles:[]}]}};
+  assert.throws(() => buildWebVhostPatch(config, {
+    vhostIndex:0,
+    host:'https://proxy.example.com/path',
+    username:'alice',
+    secretMode:'plain',
+  }), /host/i);
+});
+
 test('WEB close operation terminal states are explicit', () => {
   assert.equal(isTerminalOperation({state:'queued'}), false);
   assert.equal(isTerminalOperation({state:'running'}), false);
