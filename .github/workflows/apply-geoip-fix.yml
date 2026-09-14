@@ -1,0 +1,34 @@
+name: Apply GeoIP regression fix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: fix/restore-zero-config-geoip
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24.21.0'
+          cache: npm
+      - name: Apply fix
+        run: python scripts/apply-geoip-fix.py
+      - name: Verify
+        run: |
+          npm ci
+          npm run build
+          npm test
+      - name: Commit verified product changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-geoip-fix.yml scripts/apply-geoip-fix.py
+          git add app.js src/client.jsx .env.example README.md test/app.test.js
+          git commit -m "fix: restore secure zero-config GeoIP"
+          git push origin HEAD:fix/restore-zero-config-geoip
