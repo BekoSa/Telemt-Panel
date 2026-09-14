@@ -1299,7 +1299,6 @@ function GlobeMap({users}) {
   const draw = useCallback(()=>{
     const canvas=canvasRef.current;
     if(!canvas||!d3) return;
-    const d3=d3;
     const ctx=canvas.getContext('2d');
     const W=canvas.parentElement?.clientWidth||700;
     const H=390;
