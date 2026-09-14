@@ -58,3 +58,8 @@ test('WEB sessions explorer covers filters detail pagination operation polling a
   assert.match(web, /runtime_instance/);
   assert.match(client, /WebSessionsExplorer/);
 });
+
+test('one-time integration helpers are not shipped in the PR tree', () => {
+  assert.equal(fs.existsSync(path.join(root, '.github', 'workflows', 'apply-telemt-ui.yml')), false);
+  assert.equal(fs.existsSync(path.join(root, 'scripts', 'apply-telemt-coverage.py')), false);
+});
