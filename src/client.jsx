@@ -87,20 +87,23 @@ function CopyBtn({text}) {
   return <button className="copy-btn" onClick={()=>{navigator.clipboard?.writeText(text);setOk(true);setTimeout(()=>setOk(false),1500)}}>{ok?'✓':'⎘'}</button>;
 }
 function ErrBox({msg}){ return msg?<div className="error-box">⚠ {msg}</div>:null; }
+const isUnsupportedCapability = (code,status) => status===404 || code==='not_found';
 
 function useApi(path, deps=[]) {
   const [data,setData] = useState(null);
   const [err,setErr]   = useState(null);
+  const [errCode,setErrCode] = useState(null);
+  const [errStatus,setErrStatus] = useState(null);
   const [loading,setL] = useState(false);
   const [lastTs,setTs] = useState(null);
   const load = useCallback(async () => {
-    setL(true); setErr(null);
+    setL(true); setErr(null); setErrCode(null); setErrStatus(null);
     try { const r = await api(path); setData(r.data); setTs(new Date().toLocaleTimeString()); }
-    catch(e){ setErr(e.message); }
+    catch(e){ setErr(e.message); setErrCode(e.code||null); setErrStatus(e.status||null); }
     finally{ setL(false); }
   }, [path]);
   useEffect(()=>{ load(); },[load,...deps]);
-  return {data,err,loading,reload:load,lastTs};
+  return {data,err,errCode,errStatus,loading,reload:load,lastTs};
 }
 function RefreshBar({loading,onRefresh,lastTs}){
   return (
@@ -175,6 +178,7 @@ function DashboardPage() {
   const sum    = useApi('/stats/summary');
   const gates  = useApi('/runtime/gates');
   const reload = () => { health.reload(); ready.reload(); info.reload(); sum.reload(); gates.reload(); };
+  const readyUnsupported = ready.err && isUnsupportedCapability(ready.errCode,ready.errStatus);
   return (
     <div>
       <div className="page-hdr">
@@ -192,10 +196,11 @@ function DashboardPage() {
         <div className="stat-card">
           <div className="stat-label">READY</div>
           <div className="stat-value" style={{fontSize:15,marginTop:4}}>
-            {ready.loading?'…':ready.err?<span style={{color:'var(--text3)'}}>N/A</span>:ready.data?.ready?<span style={{color:'var(--accent)'}}>● READY</span>:<span style={{color:'var(--warn)'}}>● NOT READY</span>}
+            {ready.loading?'…':readyUnsupported?<span style={{color:'var(--text3)'}}>N/A</span>:ready.err?<span style={{color:'var(--err)'}}>ERROR</span>:ready.data?.ready?<span style={{color:'var(--accent)'}}>● READY</span>:<span style={{color:'var(--warn)'}}>● NOT READY</span>}
           </div>
           {ready.data&&<div className="stat-sub">{ready.data.status||'unknown'}</div>}
-          {ready.err&&<div className="stat-sub">unsupported or unavailable</div>}
+          {readyUnsupported&&<div className="stat-sub">unsupported on connected Telemt</div>}
+          {ready.err&&!readyUnsupported&&<div className="stat-sub" style={{color:'var(--err)'}}>{ready.err}</div>}
         </div>
         <div className="stat-card"><div className="stat-label">UPTIME</div><div className="stat-value accent">{sum.data?fmt_uptime(sum.data.uptime_seconds):'—'}</div></div>
         <div className="stat-card">
@@ -308,9 +313,10 @@ function UsersPage() {
 }
 
 function ActiveUserIps(){
-  const {data,err,loading,reload,lastTs}=useApi('/stats/users/active-ips');
+  const {data,err,errCode,errStatus,loading,reload,lastTs}=useApi('/stats/users/active-ips');
   if(loading) return <div className="card"><div className="card-title">Active source IPs</div><div className="loading-box">Loading</div></div>;
-  if(err) return <div className="card"><div className="card-title">Active source IPs</div><div className="badge badge-dim">Unavailable on connected Telemt</div></div>;
+  if(err&&isUnsupportedCapability(errCode,errStatus)) return <div className="card"><div className="card-title">Active source IPs</div><div className="badge badge-dim">Unavailable on connected Telemt</div></div>;
+  if(err) return <div className="card"><div className="card-title">Active source IPs</div><ErrBox msg={err}/></div>;
   const rows=Array.isArray(data)?data:[];
   return <div className="card" style={{marginTop:16}}>
     <div className="card-title" style={{justifyContent:'space-between'}}><span>Active source IPs</span><button className="btn btn-ghost btn-sm" onClick={reload}>Refresh</button></div>
@@ -899,6 +905,7 @@ function EdgePage(){
 function WebRuntimePanel(){
   const status=useApi('/runtime/web/status');
   const sessions=useApi('/runtime/web/sessions?limit=100');
+  const webUnsupported=status.err&&isUnsupportedCapability(status.errCode,status.errStatus);
   const [busy,setBusy]=useState(null);
   const [msg,setMsg]=useState(null);
   const [actionErr,setActionErr]=useState(null);
@@ -945,7 +952,8 @@ function WebRuntimePanel(){
   };
 
   if(status.loading) return <div className="loading-box">Loading WEB runtime</div>;
-  if(status.err) return <div><ErrBox msg={status.err}/><div className="badge badge-dim">WEB Runtime is unavailable on the connected Telemt</div></div>;
+  if(webUnsupported) return <div className="badge badge-dim">WEB Runtime is unavailable on the connected Telemt</div>;
+  if(status.err) return <ErrBox msg={status.err}/>;
   return <div>
     <RefreshBar loading={status.loading||sessions.loading} onRefresh={reloadAll} lastTs={status.lastTs}/>
     <ErrBox msg={actionErr||sessions.err}/>
@@ -1031,9 +1039,10 @@ function EdgeEvents(){
 }
 
 function EdgeTlsFingerprints(){
-  const {data,err,loading,reload,lastTs}=useApi('/runtime/tls-fingerprints?limit=100');
+  const {data,err,errCode,errStatus,loading,reload,lastTs}=useApi('/runtime/tls-fingerprints?limit=100');
   if(loading) return <div className="loading-box">Loading</div>;
-  if(err) return <div className="badge badge-dim">TLS fingerprint telemetry is unavailable on the connected Telemt</div>;
+  if(err&&isUnsupportedCapability(errCode,errStatus)) return <div className="badge badge-dim">TLS fingerprint telemetry is unavailable on the connected Telemt</div>;
+  if(err) return <ErrBox msg={err}/>;
   if(!data?.data) return <div className="badge badge-dim">{data?.reason||'Feature disabled or unavailable'}</div>;
   const d=data.data;
   const Table=({title,rows})=>{
