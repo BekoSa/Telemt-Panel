@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import linkTools from './link-configurator.cjs';
+import webTools from './web-runtime-tools.cjs';
 import './user-ui.css';
 
 const {
@@ -8,6 +9,7 @@ const {
   buildConnectionLink,
   buildGeneralLinksPatch,
 } = linkTools;
+const {buildWebVhostPatch} = webTools;
 
 const MODE_LABELS = {
   classic: 'Classic',
@@ -58,9 +60,19 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [telemt, setTelemt] = useState({ loading: true, readOnly: false, revision: null, publicHost: '', publicPort: null, error: null });
+  const [telemt, setTelemt] = useState({
+    loading: true,
+    readOnly: false,
+    revision: null,
+    publicHost: '',
+    publicPort: null,
+    config: null,
+    vhostIndex: null,
+    error: null,
+  });
 
   const webMode = kind === 'web-plain' || kind === 'web-dd';
+  const vhosts = Array.isArray(telemt.config?.web?.vhosts) ? telemt.config.web.vhosts : [];
 
   const loadTelemtState = async () => {
     setTelemt(s => ({...s, loading: true, error: null}));
@@ -70,15 +82,19 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
         apiFn('/health').catch(() => null),
       ]);
       const links = config?.data?.general?.links || {};
+      const loadedVhosts = Array.isArray(config?.data?.web?.vhosts) ? config.data.web.vhosts : [];
+      const matchedVhost = loadedVhosts.findIndex(v => v?.host === (initial.host || host));
       setTelemt({
         loading: false,
         readOnly: health?.data?.read_only === true,
         revision: config?.revision || null,
         publicHost: links.public_host || '',
         publicPort: links.public_port ?? null,
+        config: config?.data || {},
+        vhostIndex: matchedVhost >= 0 ? matchedVhost : (loadedVhosts.length ? 0 : null),
         error: null,
       });
-      setHost(value => value || links.public_host || '');
+      setHost(value => value || links.public_host || loadedVhosts[0]?.host || '');
       setPort(value => value || String(links.public_port || 443));
     } catch (e) {
       setTelemt(s => ({...s, loading: false, error: e.message || 'Config API unavailable'}));
@@ -143,7 +159,7 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
     if (sourceId) applyTemplate(sourceId);
     else {
       setKind('classic');
-      setHost(telemt.publicHost || '');
+      setHost(telemt.publicHost || vhosts[telemt.vhostIndex]?.host || '');
       setPort(String(telemt.publicPort || 443));
       setSecret('');
       setMessage(null);
@@ -167,16 +183,38 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
   };
 
   const saveToTelemt = async () => {
-    if (webMode) return;
     setSaving(true);
     setMessage(null);
     try {
       // Refresh immediately before write so If-Match fences concurrent config edits.
       const current = await apiFn('/config');
-      const patch = buildGeneralLinksPatch(host, port);
+      let patch;
+      let successText;
+      if (webMode) {
+        patch = buildWebVhostPatch(current?.data || {}, {
+          vhostIndex: telemt.vhostIndex,
+          host,
+          username: user.username,
+          secretMode: kind === 'web-dd' ? 'dd' : 'plain',
+        });
+        successText = 'Saved WEB host/profile mode to Telemt web.vhosts. The user secret itself was not changed.';
+      } else {
+        patch = buildGeneralLinksPatch(host, port);
+        successText = 'Saved to Telemt general.links. User links refreshed.';
+      }
       const saved = await apiFn('/config', 'PATCH', patch, current?.revision || telemt.revision);
-      setTelemt(s => ({...s, revision: saved?.revision || current?.revision || s.revision, publicHost: host, publicPort: Number(port), error: null}));
-      setMessage({ok: true, text: 'Saved to Telemt general.links. User links refreshed.'});
+      const nextConfig = webMode
+        ? {...(current?.data || {}), web:{...(current?.data?.web || {}), vhosts:patch.web.vhosts}}
+        : (current?.data || telemt.config);
+      setTelemt(s => ({
+        ...s,
+        revision: saved?.revision || current?.revision || s.revision,
+        publicHost: webMode ? s.publicHost : host,
+        publicPort: webMode ? s.publicPort : Number(port),
+        config: nextConfig,
+        error: null,
+      }));
+      setMessage({ok: true, text: successText});
       await onSaved?.();
     } catch (e) {
       const code = e.code || '';
@@ -185,7 +223,7 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
         : code === 'read_only'
           ? 'Telemt Control API is read-only. Local link generation still works.'
           : code === 'field_not_editable' || code === 'section_not_editable'
-            ? 'Connected Telemt does not allow editing general.links through the Control API.'
+            ? 'Connected Telemt does not allow this config field to be edited through the Control API.'
             : e.message;
       setMessage({ok: false, text});
       if (code === 'read_only') setTelemt(s => ({...s, readOnly: true}));
@@ -194,7 +232,8 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
     }
   };
 
-  const saveDisabled = saving || telemt.loading || telemt.readOnly || webMode;
+  const webTargetMissing = webMode && (!vhosts.length || telemt.vhostIndex === null || !vhosts[telemt.vhostIndex]);
+  const saveDisabled = saving || telemt.loading || telemt.readOnly || webTargetMissing;
 
   return (
     <div style={{borderTop:'1px solid var(--border)',paddingTop:14,marginTop:14}}>
@@ -203,7 +242,7 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
         <span className="badge badge-dim">manual · preview-safe</span>
       </div>
       <div style={{fontSize:11,color:'var(--text3)',marginBottom:12,lineHeight:1.5}}>
-        Build a connection link without changing Telemt. Standard host/port can optionally be persisted to <code>general.links</code>.
+        Build a connection link without changing Telemt. Standard host/port or an existing WEB vhost/profile can optionally be persisted through the Control API.
       </div>
 
       <div className="form-row">
@@ -257,16 +296,29 @@ export default function ConnectionLinkConfigurator({ user, apiFn, onSaved }) {
       <div style={{border:'1px solid var(--border)',borderRadius:8,padding:10,background:'var(--bg2)'}}>
         <div style={{fontSize:10,textTransform:'uppercase',letterSpacing:'.06em',color:'var(--text3)',marginBottom:7}}>Telemt config persistence</div>
         <div style={{fontSize:11,color:'var(--text3)',lineHeight:1.5,marginBottom:8}}>
-          Saves only <code>general.links.public_host</code> and <code>public_port</code> for Classic/Secure/TLS links. It never changes listener/bind addresses or the user secret.
-          {' '}WEB config is not editable by Telemt 3.5.7 Control API, so WEB plain/dd remain local link generation only.
+          {webMode
+            ? <>Telemt 3.5.7 exposes <code>web.vhosts</code> through <code>PATCH /v1/config</code>. Saving updates the selected existing vhost host and this user's <code>secret_mode</code>, while preserving its decoy and other profiles. The user secret is never changed here.</>
+            : <>Saves only <code>general.links.public_host</code> and <code>public_port</code> for Classic/Secure/TLS links. It never changes listener/bind addresses or the user secret.</>}
         </div>
+        {webMode&&<div className="form-row" style={{marginBottom:8}}>
+          <label className="form-label">WEB vhost target</label>
+          <select className="form-input" value={telemt.vhostIndex??''} onChange={e=>{
+            const index=Number(e.target.value);
+            setTelemt(s=>({...s,vhostIndex:index}));
+            if(vhosts[index]?.host) setHost(vhosts[index].host);
+          }} disabled={!vhosts.length}>
+            {!vhosts.length&&<option value="">No configured WEB vhosts</option>}
+            {vhosts.map((v,i)=><option key={`${v.host||'vhost'}-${i}`} value={i}>{v.host||`vhost #${i+1}`}</option>)}
+          </select>
+          {!vhosts.length&&<div style={{fontSize:10,color:'var(--warn)',marginTop:5}}>A WEB vhost cannot be safely invented here because decoy/proxy policy is required. Create the vhost in Configuration first, then return here to bind this user/profile.</div>}
+        </div>}
         <div style={{display:'flex',gap:7,alignItems:'center',flexWrap:'wrap'}}>
           <button className="btn btn-primary btn-sm" onClick={saveToTelemt} disabled={saveDisabled}>
-            {saving?'Saving…':'Save public host/port to Telemt'}
+            {saving?'Saving…':webMode?'Save WEB host/profile to Telemt':'Save public host/port to Telemt'}
           </button>
           {telemt.loading && <span className="last-upd">checking config…</span>}
           {!telemt.loading && telemt.readOnly && <span className="badge badge-warn">Control API read-only</span>}
-          {webMode && <span className="badge badge-dim">WEB: local only</span>}
+          {webMode && !webTargetMissing && <span className="badge badge-info">WEB config editable</span>}
           {telemt.error && <span style={{fontSize:10,color:'var(--warn)'}}>{telemt.error}</span>}
         </div>
       </div>
