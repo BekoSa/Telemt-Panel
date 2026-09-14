@@ -22,13 +22,17 @@ const BIND_IP        = process.env.BIND_SESSION_IP === 'true';
 const AUDIT_MAX      = parseInt(process.env.AUDIT_LOG_MAX || '1000');
 const GEOIP_API_URL = (process.env.GEOIP_API_URL || '').trim();
 const GEOIP_API_KEY = (process.env.GEOIP_API_KEY || '').trim();
+const GEOIP_DISABLED = process.env.GEOIP_DISABLED === 'true';
+const GEOIP_DEFAULT_URL = 'https://ip-api.io/api/v1/ip/batch';
 let GEOIP_ENDPOINT = null;
-if (GEOIP_API_URL) {
+let GEOIP_PROVIDER = 'disabled';
+if (!GEOIP_DISABLED) {
   try {
-    const parsed = new URL(GEOIP_API_URL);
+    const parsed = new URL(GEOIP_API_URL || GEOIP_DEFAULT_URL);
     const loopbackHttp = parsed.protocol === 'http:' && ['localhost','127.0.0.1','::1','[::1]'].includes(parsed.hostname);
     if (parsed.protocol !== 'https:' && !loopbackHttp) throw new Error('endpoint must use HTTPS (or loopback HTTP for a local proxy)');
     GEOIP_ENDPOINT = parsed;
+    GEOIP_PROVIDER = GEOIP_API_URL ? parsed.hostname : 'ip-api.io';
   } catch (err) {
     console.error(`[FATAL] Invalid GEOIP_API_URL: ${err.message}`);
     process.exit(1);
@@ -321,6 +325,7 @@ app.get('/panel/config', requireAuth, (req, res) => {
     auditLogMax:         AUDIT_MAX,
     auditLogCurrent:     auditLog.length,
     geoIpEnabled:        !!GEOIP_ENDPOINT,
+    geoIpProvider:       GEOIP_PROVIDER,
     rateLimitWindow:     '5 min',
     rateLimitMaxTries:   10,
   }});
@@ -370,26 +375,43 @@ app.post('/panel/geo', requireAuth, async (req, res) => {
   if (toFetch.length > 0) {
     try {
       const geoUrl = new URL(GEOIP_ENDPOINT.toString());
-      geoUrl.searchParams.set('fields', 'status,message,lat,lon,country,city,query');
-      if (GEOIP_API_KEY) geoUrl.searchParams.set('key', GEOIP_API_KEY);
+      const isIpApiIo = geoUrl.hostname === 'ip-api.io';
+      if (isIpApiIo) {
+        if (GEOIP_API_KEY) geoUrl.searchParams.set('api_key', GEOIP_API_KEY);
+      } else {
+        geoUrl.searchParams.set('fields', 'status,message,lat,lon,country,city,query');
+        if (GEOIP_API_KEY) geoUrl.searchParams.set('key', GEOIP_API_KEY);
+      }
       const r = await fetch(geoUrl, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(toFetch.map(ip => ({ query: ip }))),
+        body:    JSON.stringify(isIpApiIo ? { ips: toFetch } : toFetch.map(ip => ({ query: ip }))),
         signal:  AbortSignal.timeout(8000),
       });
+      if (!r.ok) throw new Error(`GeoIP provider returned HTTP ${r.status}`);
       const data = await r.json();
-      for (const d of data) {
-        if (d.status !== 'success') {
-          console.warn(`[GEO] ip-api failed for ${d.query}: ${d.message||'unknown'}`);
-          continue;
+      if (isIpApiIo) {
+        for (const [ip, d] of Object.entries(data.results || {})) {
+          const loc = d?.location || {};
+          if (!Number.isFinite(loc.latitude) || !Number.isFinite(loc.longitude)) continue;
+          const entry = { ip: d.ip || ip, lat: loc.latitude, lon: loc.longitude, country: loc.country, city: loc.city, ts: now };
+          geoCache.set(entry.ip, entry);
+          result.push(entry);
         }
-        const entry = { ip: d.query, lat: d.lat, lon: d.lon, country: d.country, city: d.city, ts: now };
-        geoCache.set(d.query, entry);
-        result.push(entry);
+      } else {
+        if (!Array.isArray(data)) throw new Error('Custom GeoIP provider returned an unsupported payload');
+        for (const d of data) {
+          if (d.status !== 'success') {
+            console.warn(`[GEO] lookup failed for ${d.query}: ${d.message||'unknown'}`);
+            continue;
+          }
+          const entry = { ip: d.query, lat: d.lat, lon: d.lon, country: d.country, city: d.city, ts: now };
+          geoCache.set(d.query, entry);
+          result.push(entry);
+        }
       }
     } catch (e) {
-      console.error('[GEO] ip-api.com error:', e.message);
+      console.error(`[GEO] ${GEOIP_PROVIDER} error:`, e.message);
     }
   }
 
