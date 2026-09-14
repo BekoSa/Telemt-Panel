@@ -1,0 +1,45 @@
+name: Apply frontend bundle migration
+
+on:
+  push:
+    branches:
+      - modernize/telemt-3.5.7
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: "${{ github.event.head_commit.message != 'build: precompile and bundle frontend locally' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24.21.0'
+          cache: npm
+
+      - name: Install frontend build dependencies
+        run: npm install --save-dev react@19.3.0 react-dom@19.3.0 chart.js@4.5.1 d3@7.9.0 topojson-client@3.1.0 world-atlas@2.0.2 esbuild@0.28.2
+
+      - name: Extract and wire frontend build
+        run: node scripts/extract-frontend-build.js
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Verify tests
+        run: npm test
+
+      - name: Commit migration
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json public/index.html src/client.jsx Dockerfile .gitignore README.md .github/workflows/test.yml .github/workflows/docker.yml
+          git commit -m 'build: precompile and bundle frontend locally'
+          git push origin HEAD:modernize/telemt-3.5.7
