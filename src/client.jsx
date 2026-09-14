@@ -12,6 +12,7 @@ import '@fontsource/dm-sans/400.css';
 import '@fontsource/dm-sans/500.css';
 import '@fontsource/dm-sans/600.css';
 import '@fontsource/dm-sans/700.css';
+import ConnectionLinkConfigurator from './connection-link-configurator.jsx';
 
 
 // ─── Icons ──────────────────────────────────────────────────────────────────
@@ -503,6 +504,18 @@ function UserDetailModal({user:initialUser,onClose,onEdit,cfg}) {
             ))}
           </div>
         )}
+
+
+        <ConnectionLinkConfigurator
+          user={u}
+          apiFn={api}
+          onSaved={async()=>{
+            try{
+              const fresh=await api('/users/'+u.username);
+              if(fresh?.data) setUser(fresh.data);
+            }catch{}
+          }}
+        />
 
         {/* Telemt 3.5.7 user controls */}
         <div style={{borderTop:'1px solid var(--border)',paddingTop:14,marginTop:4}}>
