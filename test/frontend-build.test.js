@@ -32,3 +32,10 @@ test('client source bundles visualization dependencies and world topology locall
   assert.match(source, /from ['"]world-atlas\/countries-110m\.json['"]/);
   assert.doesNotMatch(source, /cdn\.jsdelivr\.net\/npm\/world-atlas/i);
 });
+
+test('globe renderer uses the imported d3 namespace without self-shadowing it', () => {
+  const source = fs.readFileSync(clientPath, 'utf8');
+  assert.doesNotMatch(source, /const\s+d3\s*=\s*d3\s*;/);
+  assert.match(source, /topojson\.feature\(world,world\.objects\.countries\)/);
+  assert.match(source, /d3\.geoOrthographic\(\)/);
+});
