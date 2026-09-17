@@ -1262,7 +1262,7 @@ function GlobeMap({users}) {
   const wrapRef   = useRef(null);
   const S = useRef({world:null,points:[],rotLon:0,rotLat:-22,animId:null,drag:false,dragX:0,dragY:0,dragLon:0,dragLat:0,zoom:1.0,minZoom:0.5,maxZoom:6.0,spinning:true});
   const [status,setStatus] = useState('loading');
-  const [count,setCount]   = useState({resolved:0,sent:0});
+  const [count,setCount]   = useState({resolved:0,sent:0,disabled:false});
   const [tooltip,setTooltip] = useState(null); // {x,y,ip,city,country}
 
   // returns current D3 projection based on canvas size
@@ -1514,6 +1514,12 @@ function GlobeMap({users}) {
         if(allIps.length>0){
           const geo=await panelFetch('/panel/geo','POST',{ips:allIps});
           if(cancelled) return;
+          if(geo.disabled){
+            S.current.points=[];
+            setCount({resolved:0,sent:allIps.length,disabled:true});
+            if(!cancelled) setStatus('ready');
+            return;
+          }
           // Mark active vs recent for different visual treatment
           const activeSet=new Set((users||[]).flatMap(u=>u.active_unique_ips_list||[]));
           const rawPoints=(geo.data||[]).map(p=>({
@@ -1561,10 +1567,10 @@ function GlobeMap({users}) {
               });
             }
           }
-          setCount({resolved: S.current.points.length, sent: geo.meta?.sent||allIps.length});
+          setCount({resolved: S.current.points.length, sent: geo.meta?.sent||allIps.length, disabled:false});
         } else {
           S.current.points=[];
-          setCount({resolved:0,sent:0});
+          setCount({resolved:0,sent:0,disabled:false});
         }
         if(!cancelled) setStatus('ready');
       }catch(e){ if(!cancelled){console.error('[Globe]',e);setStatus('error');} }
@@ -1581,7 +1587,9 @@ function GlobeMap({users}) {
           <GlobeControls S={S}/>
           <div style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--text3)'}}>
           {status==='loading'&&'⟳ geolocating…'}
-          {status==='ready'&&(
+          {status==='ready'&&(count.disabled ? (
+            <span style={{fontFamily:'var(--mono)',fontSize:11,color:'var(--warn)'}}>GeoIP disabled · set GEOIP_DISABLED=false to plot IP locations</span>
+          ) : (
             <span style={{fontFamily:'var(--mono)',fontSize:11}}>
               <span style={{color:'var(--accent)'}}>●</span>
               <span style={{color:'var(--text3)'}}> active </span>
@@ -1593,7 +1601,7 @@ function GlobeMap({users}) {
                 {' '}· drag to rotate
               </span>
             </span>
-          )}
+          ))}
           {status==='error'&&'⚠ geo lookup failed'}
           </div>
         </div>

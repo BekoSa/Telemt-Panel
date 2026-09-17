@@ -12,7 +12,7 @@ Web UI для управления [Telemt MTProto proxy](https://github.com/tel
 - ⚙️ **Runtime** — Gates, Initialization, ME Pool, ME Quality, Upstream Quality, NAT/STUN, ME Selftest и readiness
 - 🌐 **Runtime Edge / WEB** — connection summary, recent events, TLS fingerprints, WEB status/sessions, close session, Pause/Drain/Resume
 - 🧩 **Configuration** — безопасный sparse JSON patch с `If-Match` revision, conflict handling и drain+rollback runtime reload
-- 📈 **Analytics** — live-график соединений, топ пользователей, 3D-глобус; GeoIP включается только явной настройкой оператора
+- 📈 **Analytics** — live-график соединений, топ пользователей, 3D-глобус; GeoIP работает из коробки через серверный HTTPS batch lookup и может быть явно отключён
 - 🔍 **Analysis** — health score, детектирование аномалий, анализ лимитов пользователей
 - 🛡️ **Panel Security** — активные сессии/revoke, аудит-лог и текущая конфигурация безопасности панели
 - 📦 **Локальный frontend bundle** — React/Chart.js/D3/TopoJSON/world-atlas собираются через npm/esbuild; browser Babel и runtime CDN не используются
@@ -87,8 +87,9 @@ CI выполняет frontend build и весь Node.js test suite перед D
 | `PANEL_USERNAME` | — | Логин (default: `admin`) |
 | `TELEMT_API_URL` | — | Адрес Telemt API (default: `http://127.0.0.1:9091`) |
 | `TELEMT_API_TOKEN` | — | Authorization header для Telemt API |
-| `GEOIP_API_URL` | — | HTTPS batch endpoint для opt-in геолокации IP; без него GeoIP выключен |
-| `GEOIP_API_KEY` | — | Опциональный ключ GeoIP-провайдера (добавляется как query `key`) |
+| `GEOIP_DISABLED` | — | `true` полностью отключает GeoIP (default: `false`) |
+| `GEOIP_API_URL` | — | Опциональный custom HTTPS batch endpoint; default: `https://ip-api.io/api/v1/ip/batch` |
+| `GEOIP_API_KEY` | — | Опциональный ключ GeoIP-провайдера (`api_key` для ip-api.io, `key` для legacy-compatible custom endpoint) |
 | `PORT` | — | Порт панели (default: `3000`) |
 | `COOKIE_SECURE` | — | `true` только при HTTPS |
 | `TRUST_PROXY` | — | `true` за nginx/caddy |
@@ -168,8 +169,8 @@ telemt-panel/
 - CSRF-токен обязателен для всех мутирующих запросов панели
 - Browser CSP разрешает scripts/connections только с origin панели; runtime CDN-зависимости удалены
 - Панель и Docker healthcheck используют отдельный публичный `/healthz`, который не раскрывает конфигурацию или состояние сессий
-- Геолокация IP выключена по умолчанию: адреса клиентов не отправляются третьей стороне без явной настройки `GEOIP_API_URL`; внешний endpoint обязан использовать HTTPS (loopback HTTP разрешён только для локального proxy)
-- Для ip-api используйте Pro HTTPS batch endpoint и ключ; бесплатный HTTP endpoint намеренно больше не используется
+- Геолокация IP выполняется сервером через HTTPS: по умолчанию используется `ip-api.io` batch API; браузер по-прежнему делает запросы только к origin панели
+- Публичные IP отправляются GeoIP-провайдеру только для построения карты; `GEOIP_DISABLED=true` полностью отключает передачу, а `GEOIP_API_URL` позволяет указать свой HTTPS endpoint (loopback HTTP разрешён только для локального proxy)
 
 ### Ограничения текущей архитектуры
 
