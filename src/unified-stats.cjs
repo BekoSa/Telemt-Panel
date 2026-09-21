@@ -23,6 +23,10 @@ function normalizeUnifiedSnapshot({ edge, web } = {}) {
   return {
     mtproxy,
     web: webPlane,
+    availability: {
+      mtproxy: Boolean(edge?.data),
+      web: Boolean(web?.runtime),
+    },
     clientActivity: mtproxy.current + webPlane.sessions,
   };
 }
@@ -41,15 +45,17 @@ function createTimelineBuffer() {
 }
 
 function appendTimelinePoint(buffer, snapshot, label, maxPoints = 72) {
+  const mtproxyAvailable = snapshot?.availability?.mtproxy !== false;
+  const webAvailable = snapshot?.availability?.web !== false;
   const values = {
     labels: label,
-    mtproxy: numberOrZero(snapshot?.mtproxy?.current),
-    direct: numberOrZero(snapshot?.mtproxy?.direct),
-    me: numberOrZero(snapshot?.mtproxy?.me),
-    activeUsers: numberOrZero(snapshot?.mtproxy?.activeUsers),
-    webSessions: numberOrZero(snapshot?.web?.sessions),
-    webStreams: numberOrZero(snapshot?.web?.streams),
-    wssSockets: numberOrZero(snapshot?.web?.wssSockets),
+    mtproxy: mtproxyAvailable ? numberOrZero(snapshot?.mtproxy?.current) : null,
+    direct: mtproxyAvailable ? numberOrZero(snapshot?.mtproxy?.direct) : null,
+    me: mtproxyAvailable ? numberOrZero(snapshot?.mtproxy?.me) : null,
+    activeUsers: mtproxyAvailable ? numberOrZero(snapshot?.mtproxy?.activeUsers) : null,
+    webSessions: webAvailable ? numberOrZero(snapshot?.web?.sessions) : null,
+    webStreams: webAvailable ? numberOrZero(snapshot?.web?.streams) : null,
+    wssSockets: webAvailable ? numberOrZero(snapshot?.web?.wssSockets) : null,
   };
   for (const [key, value] of Object.entries(values)) {
     buffer[key].push(value);
