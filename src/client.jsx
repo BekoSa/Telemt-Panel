@@ -563,7 +563,7 @@ function StatsSummary(){
     <RefreshBar loading={loading} onRefresh={reload} lastTs={lastTs}/>
     <ErrBox msg={err}/>
     {data&&<div className="card-grid">
-      {[['UPTIME',fmt_uptime(data.uptime_seconds),'accent'],['MTPROXY ACCEPTED',data.connections_total?.toLocaleString(),''],
+      {[['UPTIME',fmt_uptime(data.uptime_seconds),'accent'],['CORE CONNECTIONS TOTAL',data.connections_total?.toLocaleString(),''],
         ['BAD CONNECTIONS',data.connections_bad_total,'err'],['HANDSHAKE TIMEOUTS',data.handshake_timeouts_total,'warn'],
         ['CONFIGURED USERS',data.configured_users,'accent']].map(([l,v,c])=>(
         <div key={l} className="stat-card"><div className="stat-label">{l}</div><div className={`stat-value ${c}`}>{v}</div></div>
