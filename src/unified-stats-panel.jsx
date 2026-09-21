@@ -83,7 +83,7 @@ export default function UnifiedStatsPanel({apiFn,pollMs=10000,compact=false}) {
       </div>
     </div>
     <div className="last-upd">
-      MTProxy and WEB planes are reported separately: connection/session counts and byte counters have different semantics and are not merged into a fake traffic total.
+      MTProxy and WEB planes are reported separately: live connection/session counts and byte counters have different semantics and are not merged into a fake traffic total. The core cumulative connection counter may include WEB logical streams after they enter the MTProto backend.
       {updated?' · updated '+updated:''}
     </div>
   </div>;
