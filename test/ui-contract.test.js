@@ -10,6 +10,8 @@ const legacyPath = path.join(__dirname, '..', 'public', 'index.html');
 const source = fs.readFileSync(fs.existsSync(clientPath) ? clientPath : legacyPath, 'utf8');
 const webExplorerPath = path.join(__dirname, '..', 'src', 'web-sessions-explorer.jsx');
 const webExplorerSource = fs.existsSync(webExplorerPath) ? fs.readFileSync(webExplorerPath, 'utf8') : '';
+const structuredConfigPath = path.join(__dirname, '..', 'src', 'structured-config-editor.jsx');
+const structuredConfigSource = fs.existsSync(structuredConfigPath) ? fs.readFileSync(structuredConfigPath, 'utf8') : '';
 
 test('dashboard queries Telemt readiness without replacing panel liveness', () => {
   assert.match(source, /useApi\('\/health\/ready'\)/);
@@ -103,9 +105,9 @@ test('Telemt config editor preserves optimistic concurrency revision', () => {
 });
 
 test('Telemt config reload uses bounded drain with rollback and polls status', () => {
-  assert.match(source, /api\('\/system\/reload','POST',\{mode:'drain',timeout_secs:30,failure_policy:'rollback'\}\)/);
-  assert.match(source, /api\('\/system\/reload\/'\+reloadId\)/);
-  assert.match(source, /deferred_process_fields/);
-  assert.match(source, /rolled_back/);
-  assert.match(source, /succeeded/);
+  assert.match(structuredConfigSource, /apiFn\('\/system\/reload','POST',\{mode:'drain',timeout_secs:30,failure_policy:'rollback'\}\)/);
+  assert.match(structuredConfigSource, /apiFn\('\/system\/reload\/'\+id\)/);
+  assert.match(structuredConfigSource, /deferred_process_fields/);
+  assert.match(structuredConfigSource, /rolled_back/);
+  assert.match(structuredConfigSource, /succeeded/);
 });
