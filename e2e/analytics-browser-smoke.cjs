@@ -263,7 +263,16 @@ async function main(){
       item.click();
       return true;
     })()`);
-    await waitFor(cdp,`document.body.innerText.includes('Live Activity') && document.body.innerText.includes('Top Users — Live Activity')`);
+    try{
+      await waitFor(cdp,`document.body.innerText.includes('Live Activity') && document.body.innerText.includes('Top Users — Live Activity')`);
+    }catch(error){
+      const state=await evaluate(cdp,`({
+        body:document.body.innerText.slice(0,6000),
+        active:[...document.querySelectorAll('.nav-item.active')].map(el=>el.textContent.trim()),
+        nav:[...document.querySelectorAll('.nav-item')].map(el=>el.textContent.trim())
+      })`).catch(()=>null);
+      throw new Error(error.message+'; browserErrors='+JSON.stringify(browserErrors)+'; state='+JSON.stringify(state));
+    }
     await sleep(1200);
 
     const result=await evaluate(cdp,`(()=>{
