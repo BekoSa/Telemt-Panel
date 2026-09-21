@@ -13,10 +13,10 @@ import '@fontsource/dm-sans/500.css';
 import '@fontsource/dm-sans/600.css';
 import '@fontsource/dm-sans/700.css';
 import ConnectionLinkConfigurator from './connection-link-configurator.jsx';
+import StructuredConfigEditor from './structured-config-editor.jsx';
 import userPolicy from './user-policy.cjs';
 import UserQuotaRuntime from './user-quota-runtime.jsx';
 import WebSessionsExplorer from './web-sessions-explorer.jsx';
-import StructuredConfigEditor from './structured-config-editor.jsx';
 
 const {buildCreateUserBody,buildPatchUserBody}=userPolicy;
 
