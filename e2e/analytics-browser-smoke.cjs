@@ -264,7 +264,7 @@ async function main(){
       return true;
     })()`);
     try{
-      await waitFor(cdp,`document.body.innerText.includes('Live Activity') && document.body.innerText.includes('Top Users — Live Activity')`);
+      await waitFor(cdp,`document.body.textContent.includes('Live Activity') && document.body.textContent.includes('Top Users — Live Activity')`);
     }catch(error){
       const state=await evaluate(cdp,`({
         body:document.body.innerText.slice(0,6000),
