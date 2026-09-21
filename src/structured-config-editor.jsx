@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useMemo,useState} from 'react';
 import configEditor from './config-editor.cjs';
 
-const {isObject,buildSparsePatch,setPathValue,coerceLike,emptyLike}=configEditor;
+const {isObject,buildSparsePatch,setPathValue,coerceLike,newArrayItem}=configEditor;
 
 const SECTIONS=[
   {id:'general',label:'General',path:['general']},
@@ -28,8 +28,7 @@ function ConfigValueEditor({value,path,onChange,label}){
       <div className="card-title" style={{justifyContent:'space-between',marginBottom:8}}>
         <span>{label}</span>
         <button className="btn btn-ghost btn-sm" onClick={()=>{
-          const sample=value.length?value[0]:'';
-          onChange(path,[...value,emptyLike(sample)]);
+          onChange(path,[...value,newArrayItem(path,value)]);
         }}>+ Add item</button>
       </div>
       {value.length===0&&<div className="empty-box">Empty array · Add item to create a value</div>}
