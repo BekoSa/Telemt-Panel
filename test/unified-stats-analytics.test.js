@@ -29,6 +29,21 @@ test('unified snapshot keeps MTProxy and WEB planes explicit without fake byte t
   assert.equal(snapshot.clientActivity, 11);
 });
 
+test('disabled telemetry planes are marked unavailable and create chart gaps instead of fake zeros', () => {
+  const { normalizeUnifiedSnapshot, appendTimelinePoint, createTimelineBuffer } = loadHelper();
+  const snapshot = normalizeUnifiedSnapshot({
+    edge: { enabled: false, data: null },
+    web: { lifecycle: 'disabled', runtime: null },
+  });
+  assert.deepEqual(snapshot.availability, { mtproxy: false, web: false });
+  const buffer = createTimelineBuffer();
+  appendTimelinePoint(buffer, snapshot, 't0', 3);
+  assert.equal(buffer.mtproxy[0], null);
+  assert.equal(buffer.direct[0], null);
+  assert.equal(buffer.webSessions[0], null);
+  assert.equal(buffer.wssSockets[0], null);
+});
+
 test('timeline points stay aligned and bounded while preserving WEB series', () => {
   const { appendTimelinePoint, createTimelineBuffer } = loadHelper();
   const buffer = createTimelineBuffer();
