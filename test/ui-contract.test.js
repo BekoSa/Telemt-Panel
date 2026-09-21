@@ -98,10 +98,11 @@ test('WEB runtime can close an explicit active session reference and track its o
 
 test('Telemt config editor preserves optimistic concurrency revision', () => {
   assert.match(source, /function TelemtConfigPage\(/);
-  assert.match(source, /api\('\/config'\)/);
-  assert.match(source, /api\('\/config','PATCH',patch,revision\)/);
-  assert.match(source, /revision_conflict/);
-  assert.match(source, />Configuration</);
+  assert.match(source, /StructuredConfigEditor/);
+  assert.match(structuredConfigSource, /apiFn\('\/config'\)/);
+  assert.match(structuredConfigSource, /apiFn\('\/config','PATCH',patch,revision\)/);
+  assert.match(structuredConfigSource, /revision_conflict/);
+  assert.match(structuredConfigSource, />Configuration</);
 });
 
 test('Telemt config reload uses bounded drain with rollback and polls status', () => {
