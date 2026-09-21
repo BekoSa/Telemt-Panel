@@ -58,6 +58,16 @@ test('new array rows can be created from the shape of an existing item',()=>{
   });
 });
 
+test('empty known arrays get valid Telemt-shaped starter rows',()=>{
+  const {newArrayItem}=helper();
+  assert.deepEqual(newArrayItem(['server','listeners'],[]),{ip:'0.0.0.0',port:443});
+  assert.deepEqual(newArrayItem(['upstreams'],[]),{type:'direct',enabled:true,weight:1,scopes:''});
+  assert.deepEqual(newArrayItem(['web','vhosts'],[]),{
+    host:'',public_addr:'',decoy:{mode:'http_upstream',upstream:'http://127.0.0.1:18081'},profiles:[],
+  });
+  assert.deepEqual(newArrayItem(['web','vhosts',0,'profiles'],[]),{user:'',secret_mode:'dd'});
+});
+
 test('structured config editor exposes normal sections arrays diff preview advanced JSON and safe writes',()=>{
   assert.ok(fs.existsSync(uiPath),'src/structured-config-editor.jsx must exist');
   const ui=fs.readFileSync(uiPath,'utf8');
