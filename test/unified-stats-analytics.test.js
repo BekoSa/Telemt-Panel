@@ -76,6 +76,14 @@ test('top users combines MTProxy connection counts with WEB session ownership ex
   ]);
 });
 
+test('core cumulative connection counter is not mislabeled as MTProxy-only', () => {
+  const client = fs.readFileSync(clientPath, 'utf8');
+  const ui = fs.readFileSync(unifiedUiPath, 'utf8');
+  assert.doesNotMatch(client, /MTPROXY ACCEPTED/);
+  assert.match(client, /CORE CONNECTIONS TOTAL/);
+  assert.match(ui, /core cumulative.*WEB logical streams/i);
+});
+
 test('dashboard and statistics expose WEB alongside MTProxy through a shared panel', () => {
   assert.ok(fs.existsSync(unifiedUiPath), 'src/unified-stats-panel.jsx must exist');
   const client = fs.readFileSync(clientPath, 'utf8');
