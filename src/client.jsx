@@ -16,6 +16,8 @@ import ConnectionLinkConfigurator from './connection-link-configurator.jsx';
 import userPolicy from './user-policy.cjs';
 import UserQuotaRuntime from './user-quota-runtime.jsx';
 import WebSessionsExplorer from './web-sessions-explorer.jsx';
+import UnifiedStatsPanel from './unified-stats-panel.jsx';
+import UnifiedAnalytics from './unified-analytics.jsx';
 
 const {buildCreateUserBody,buildPatchUserBody}=userPolicy;
 
@@ -232,6 +234,7 @@ function DashboardPage() {
           {gates.data&&<><div className="progress-bar"><div className={`progress-fill ${gates.data.startup_progress_pct>=100?'':'warn'}`} style={{width:(gates.data.startup_progress_pct||0)+'%'}}/></div><div className="stat-sub">{gates.data.startup_stage}</div></>}
         </div>
       </div>
+      <UnifiedStatsPanel apiFn={api} compact/>
       {info.data&&(
         <div className="card">
           <div className="card-title"><Icon d={IC.info}/>System Info</div>
@@ -560,12 +563,13 @@ function StatsSummary(){
     <RefreshBar loading={loading} onRefresh={reload} lastTs={lastTs}/>
     <ErrBox msg={err}/>
     {data&&<div className="card-grid">
-      {[['UPTIME',fmt_uptime(data.uptime_seconds),'accent'],['TOTAL CONNECTIONS',data.connections_total?.toLocaleString(),''],
+      {[['UPTIME',fmt_uptime(data.uptime_seconds),'accent'],['MTPROXY ACCEPTED',data.connections_total?.toLocaleString(),''],
         ['BAD CONNECTIONS',data.connections_bad_total,'err'],['HANDSHAKE TIMEOUTS',data.handshake_timeouts_total,'warn'],
         ['CONFIGURED USERS',data.configured_users,'accent']].map(([l,v,c])=>(
         <div key={l} className="stat-card"><div className="stat-label">{l}</div><div className={`stat-value ${c}`}>{v}</div></div>
       ))}
     </div>}
+    <UnifiedStatsPanel apiFn={api}/>
   </div>;
 }
 function StatsZero(){
@@ -1633,7 +1637,7 @@ function AnalyticsPage(){
     <div>
       <div className="page-hdr">
         <div className="page-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"/></svg>
           Analytics
         </div>
         <div className="page-actions">
@@ -1641,8 +1645,7 @@ function AnalyticsPage(){
         </div>
       </div>
       <ErrBox msg={err}/>
-      <ConnectionChart/>
-      {users&&<TopUsersChart users={users}/>}
+      <UnifiedAnalytics apiFn={api}/>
       {users&&<GlobeMap users={users}/>}
     </div>
   );
