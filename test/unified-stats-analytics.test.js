@@ -81,7 +81,9 @@ test('analytics polls MTProxy WEB and WEB sessions and surfaces polling errors',
   assert.match(client, /UnifiedAnalytics/);
   assert.match(analytics, /\/runtime\/connections\/summary/);
   assert.match(analytics, /\/runtime\/web\/status/);
-  assert.match(analytics, /\/runtime\/web\/sessions\?limit=1000/);
+  assert.match(analytics, /\/runtime\/web\/sessions\?limit=200/);
+  assert.match(analytics, /next_cursor/);
+  assert.match(analytics, /pageCount\s*<\s*5/);
   assert.match(analytics, /setPollError/);
   assert.match(analytics, /WEB sessions/);
   assert.match(analytics, /WSS sockets/);
