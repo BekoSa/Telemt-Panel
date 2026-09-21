@@ -73,4 +73,19 @@ function emptyLike(value){
   return '';
 }
 
-module.exports={isObject,deepEqual,buildSparsePatch,setPathValue,coerceLike,emptyLike};
+function newArrayItem(path,current=[]){
+  if(Array.isArray(current)&&current.length) return emptyLike(current[0]);
+  const key=(path||[]).map(part=>typeof part==='number'?'*':String(part)).join('.');
+  if(key==='server.listeners') return {ip:'0.0.0.0',port:443};
+  if(key==='upstreams') return {type:'direct',enabled:true,weight:1,scopes:''};
+  if(key==='web.vhosts') return {
+    host:'',
+    public_addr:'',
+    decoy:{mode:'http_upstream',upstream:'http://127.0.0.1:18081'},
+    profiles:[],
+  };
+  if(/^web\.vhosts\.\*\.profiles$/.test(key)) return {user:'',secret_mode:'dd'};
+  return '';
+}
+
+module.exports={isObject,deepEqual,buildSparsePatch,setPathValue,coerceLike,emptyLike,newArrayItem};
